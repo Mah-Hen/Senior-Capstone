@@ -1,4 +1,4 @@
-# Project Title
+# Data Scraping Web Visualizer
 
 A comprehensive project for web scraping, PostgreSQL-based data storage, and front-end development to display and interact with collected data.
 
