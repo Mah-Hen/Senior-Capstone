@@ -5,11 +5,13 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import spacy
-from spacy.matcher import Matcher  
+from spacy.matcher import Matcher 
+import re 
+import psycopg2
 
 
 
-URL = "https://www.google.com/travel/explore"
+#URL = "https://www.google.com/travel/explore"
 
 def intialize(URL):
     '''Open Google Flights Explore page'''
@@ -28,6 +30,21 @@ def intialize(URL):
     # Return both driver and wait objects for further interactions with the page
     return driver, wait
 
+def intializeDatabase():
+    '''Initialize the database'''
+    conn = psycopg2.connect(
+        host="localhost",
+        database="Flights",
+        user="postgres",
+        password="Spring_2025",
+        port = "5432"
+    )
+    return conn, conn.cursor()
+
+def closeConnection(conn, cursor):
+    conn.close()
+    cursor.close()
+    
 def accessTripLength(wait):
     '''Trip-Length'''
     # Find the Trip-Length button
@@ -128,57 +145,76 @@ def accessNumOfPassengers(wait, driver, num_adults, num_children, num_infants_in
     
     # Number of people going
     # access the number of passengers button
-    num_of_passengers_button = wait.until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[jsname='QqIbod']"))) 
+    
+    num_of_passengers_button = driver.find_element(By.CSS_SELECTOR, "div[jsname='QqIbod']")
     num_of_passengers_button.click()
     time.sleep(2)
     
     # access the add adult button
-    add_adult_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label='Add adult']")
-    add_adult_button.click()
-    time.sleep(1)
+    if num_adults > 1:
+        add_adult_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label='Add adult']")
+        for i in range(num_adults-1):
+            add_adult_button.click()
+            time.sleep(1)
     
     # access the add children button
-    add_children_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label='Add child']")
-    add_children_button.click()
-    time.sleep(1)
+    if num_children > 0:
+        add_children_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label='Add child']")
+        for i in range(num_children):
+            add_children_button.click()
+            time.sleep(1)
     
     # access the add infants in seat button
-    add_infants_in_seat_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label='Add infant in seat'")
-    add_infants_in_seat_button.click()
-    time.sleep(1)
+    if num_infants_in_seat > 0:
+        add_infants_in_seat_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label='Add infant in seat'")
+        for i in range(num_infants_in_seat):
+            add_infants_in_seat_button.click()
+            time.sleep(1)
     
     # access the add infants on lap button
-    add_infants_on_lap_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label=aria-label='Add infant on lap']")
-    add_infants_on_lap_button.click()
-    time.sleep(2)
+    if num_infants_on_lap > 0:
+        add_infants_on_lap_button = driver.find_element(By.CSS_SELECTOR, "ul[jsname='nK2kYb']").find_element(By.CSS_SELECTOR, "button[aria-label=aria-label='Add infant on lap']")
+        for i in range(num_infants_on_lap):
+            add_infants_on_lap_button.click()
+            time.sleep(1)
+    time.sleep(1)
     
 
 def accessSeatingClass(wait, driver, class_type):
-    ''' Retrive the Seating Class (Economy, Prem Econ, Business, First) '''
+    ''' Retrive the Seating Class (Economy, Prem Econ, Business, First Class) '''
     
     # access the seating class button
     seating_class_button = wait.until(
         EC.element_to_be_clickable((By.CSS_SELECTOR, "div[jsname='zkxPxd']")))
     seating_class_button.click()
     time.sleep(1)
-    # if class_type == "Economy":
-    class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='2']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
-    class_type_button.click()
+    if class_type == "Economy".lower():
+        class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='1']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
+        class_type_button.click()
+    if class_type == "Prem Econ".lower():
+        class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='2']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
+        class_type_button.click()
+    if class_type == "Business".lower():
+        class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='3']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
+        class_type_button.click()
+    if class_type == "First Class".lower():
+        class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='4']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
+        class_type_button.click()
     time.sleep(2)
     
-def changeRoundTrip(wait, driver):
-    ''' Retrive Round-Trip or One-way '''
+def changeRoundTrip(wait, driver, roundtrip):
+    ''' Retrive Round Trip or One way '''
     #Click Round-Trip Button
-    round_trip_button = wait.until(
-    EC.element_to_be_clickable((By.CSS_SELECTOR, "div[jsname='L3XY7b']")))
-    round_trip_button.click()
-    time.sleep(2)
+    if not roundtrip:
+        round_trip_button = wait.until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "div[jsname='L3XY7b']")))
+        round_trip_button.click()
+        time.sleep(2)
     
-    # Change to One-Way
-    ticket_type = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your ticket type.']").find_element(By.CSS_SELECTOR, "li[data-value='2']") # data-value = '1' gives round trip else one-way
-    ticket_type.click()
-    time.sleep(2)
+        # Change to One-Way
+        ticket_type = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your ticket type.']").find_element(By.CSS_SELECTOR, "li[data-value='2']") # data-value = '1' gives round trip else one-way
+        ticket_type.click()
+        time.sleep(2)
     
 def accessOriginDestination(wait, driver, origin, destination):
     '''Retrieve Origin and Destination'''
@@ -228,6 +264,20 @@ def access_Flights(driver):
     view_more_flights_button.click()
     time.sleep(5)
     
+    # loper to continue
+    
+def retrieveAirplaneType(driver):
+    all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+    for result in all_results:
+        dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
+        dropdown_button.click()
+        time.sleep(2)
+        div_element = result.find_element(By.CSS_SELECTOR, "div[jsname='XxAJue']").find_element(By.CSS_SELECTOR, "div[jsname='lVbzR']")
+        div_element = div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
+        span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
+        airplane_type = span_elements[3].text
+        return airplane_type
+    
 def get_search_results(driver):
     URL = "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI1LTAxLTA1agcIARIDQldJcgwIAhIIL20vMDJjbDEaIxIKMjAyNS0wMS0wNmoMCAISCC9tLzAyY2wxcgcIARIDQldJQAFIAXABggELCP___________wGYAQE&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmVSBGABeAE"
     driver, wait = intialize(URL) # Initialize the driver and wait objects
@@ -255,7 +305,105 @@ def get_search_results(driver):
             extractFlightInfo(doc)
             
             
+def getUserNumPass():
+    '''Retrieve the number of passengers'''
+    passangers = 9
+    while True:
+        try:
+            num_adults = int(input(f"Enter the number of Adults: "))
+            if num_adults > passangers:
+                print("The maximum number of passengers is 9")
+            else:
+                passangers = passangers - num_adults if passangers - num_adults >= 0 else 0
+                try:
+                    num_child = int(input(f"Enter the number of Children (Aged 2-11): "))
+                    if num_child > passangers:
+                        print("The maximum number of passengers is 9")
+                    else:
+                        passangers = passangers - num_child if passangers - num_child >= 0 else 0
+                        try:
+                            num_infants_in_seat = int(input(f"Enter the number of Infants (In seat): "))
+                            if num_infants_in_seat > passangers:
+                                print("The maximum number of passengers is 9")
+                            else:
+                                passangers = passangers - num_infants_in_seat if passangers - num_infants_in_seat >= 0 else 0
+                                try:
+                                    num_infants_on_lap = int(input(f"Enter the number of Adults: "))
+                                    if num_infants_on_lap > passangers:
+                                        print("The maximum number of passengers is 9")
+                                    if num_infants_on_lap > num_adults:
+                                        print("The number of infants on lap cannot exceed the number of adults")
+                                    else:
+                                        passangers = passangers - num_infants_on_lap if passangers - num_infants_on_lap >= 0 else 0
+                                        break
+                                except:
+                                    print("Please enter a valid number")
+                        except:
+                            print("Please enter a valid number")
+                except:
+                    print("Please enter a valid number")
+        except:
+            print("Please enter a valid number")
+            
+    return num_adults, num_child, num_infants_in_seat, num_infants_on_lap
+
+def getUserSeatingClass():
+    '''Retrieve the Seating Class'''
+    while True:
+        try:
+            seating_class = input("Enter the Seating Class (Economy, Prem Econ, Business, First Class): ")
+            if seating_class.lower() in ["economy", "prem econ", "business", "first class"]:
+                break
+            else:
+                print("Please enter a valid seating class")
+        except:
+            print("Please enter a valid seating class")
+            
+    return seating_class
+
+def getUserRoundTrip():
+    '''Retrieve the Round-Trip or One-Way'''
+    round_trip = False
+    while True:
+        try:
+            round_trip = input("Enter Round Trip or One Way: ")
+            if round_trip.lower() == "round trip":
+                round_trip = True
+                break
+            elif round_trip.lower() == "one way":
+                round_trip = False
+                break
+            else:
+                print("Please enter a valid option")
+        except:
+            print("Please enter a valid option")
+            
+    return round_trip
+
+def accessroundTripInfo():
+    all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+    for result in all_results:
+        select_flight = result.find_element(By.XPATH, ".//div[@class='gQ6yfe m7VU8c']")
+        select_flight.click()
+        driver.get(driver.current_url)
+        view_more_flights = driver.find_element(By.XPATH, ".//div[@jsname='YdtKid']").find_element(By.XPATH, ".//button[@jsname='ornU0b']")
+        view_more_flights.click()
+        time.sleep(2)
+        all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+        randomHash = {}
+        for result in all_results:
+            try:
+                aria_label = result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")
+            except:
+                print("")
+            if aria_label is not None:
+                print(aria_label + "\n")
+            time.sleep(2)
+
 def extractFlightInfo(nlp_doc):
+    '''Extracting flight information using spacy's NLP'''
+    '''The hardest part really. Took a couple weeks to get this right'''
+    extracted = []
     price_pattern = [
         [{"POS": "NUM"}, {"ORTH": "US"}, {"ORTH": "dollars"}] 
         ]
@@ -266,6 +414,7 @@ def extractFlightInfo(nlp_doc):
     duration_pattern = [
          [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
     ]
+    '''May need to change later'''
     num_layover_pattern = [
         [{"TEXT": "Layover"}, {"TEXT": "("}, {"POS": "NUM"}, {"TEXT": "of"}, {"POS": "NUM"}, {"TEXT": ")"}]
     ]
@@ -320,31 +469,233 @@ def extractFlightInfo(nlp_doc):
     matcher.add("NUM_CARRYON", num_of_carryon_pattern) # correct
     matcher.add("NUM_CHECKED", num_of_checked_pattern) # correct
     matches = matcher(nlp_doc)
-    for _, start, end in matches:
+    for match_id, start, end in matches:
         span = nlp_doc[start:end]
         print(span.text)
-        
+        extracted.append(span.text)
+    clean_data(extracted) 
     # Get round trip or one way from user input
 
 def clean_data(data):
+    '''Extracting/Cleaning the extracted data using regex'''
+    cleaned_data = []
+    
+    # Extract the flight price
+    flight_price = re.search(r'\d+', data[0])
+    cleaned_data.append(flight_price.group())
+    print(flight_price.group())
+    
+    # Extract the number of stops
+    num_stops = re.search(r'\d+', data[1])
+    cleaned_data.append(num_stops.group())
+    print(num_stops.group())
+    
+    # Extract the airline
+    airline = re.search(r'\w+\Z', data[2])
+    cleaned_data.append(airline.group())
+    print(airline.group())
+    
+    # Extract the departure airport, time, and date
+    departure_airport = re.search(r"Leaves (.+? Airport)", data[3])
+    cleaned_data.append(departure_airport.group(1))
+    print(departure_airport.group(1))
+    departure_time = re.search(r"(\d+:\d+ [AP]M)", data[3])
+    cleaned_data.append(departure_time.group(1))
+    print(departure_time.group(1))
+    departure_date = re.search(r"(\w+, \w+ \d$)", data[3])
+    cleaned_data.append(departure_date.group(1))
+    print(departure_date.group(1))
+    
+
+    # Extract the arrival airport, time, and date
+    arrival_airport = re.search(r"arrives at (.+? Airport)", data[4])
+    cleaned_data.append(arrival_airport.group(1))
+    print(arrival_airport.group(1))
+    arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
+    cleaned_data.append(arrival_time.group(1))
+    print(arrival_time.group(1))
+    arrival_date = re.search(r"(\w+, \w+ \d$)", data[4])
+    cleaned_data.append(arrival_date.group(1))
+    print(arrival_date.group(1))
+    
+    # Extract the total duration of the flight
+    total_duration = re.search(r"(\d+ hr \d+ min)", data[5])
+    cleaned_data.append(total_duration.group(1))
+    print(total_duration.group(1))
+    
+    '''May Need to change later'''
+    # Extract the number of layovers
+    num_layovers = re.search(r"\d+", data[6])
+    cleaned_data.append(num_layovers.group())
+    print(num_layovers.group())
+    
+    # Extract the layover duration
+    layover_duration = re.search(r"(\d+ hr \d+ min)", data[7])
+    cleaned_data.append(layover_duration.group(1))
+    print(layover_duration.group(1))
+
+    # Extract layover airport
+    layover_airport = re.search(r"at (.+? Airport)", data[8])
+    cleaned_data.append(layover_airport.group(1))
+    print(layover_airport.group(1))
+    
+    # Extract layover city
+    layover_city = re.search(r"in (.+)", data[8])
+    cleaned_data.append(layover_city.group(1))
+    print(layover_city.group(1))
+    
+    # Extract the number of carry-on bags
+    num_carryon = re.search(r"\d+", data[9])
+    cleaned_data.append(num_carryon.group())
+    print(num_carryon.group())
+    
+    # Extract the number of checked bags
+    num_checked = re.search(r"\d+", data[10])
+    cleaned_data.append(num_checked.group())
+    print(num_checked.group())
+    
+    return cleaned_data
     '''Clean the data'''
     '''Create a pipeline to store into SQL database'''
+    # Need: num of passangers, seating class, round trip or one way
     
-    return
 
     
-def main():
+def concate(cleaned_data, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, airplane_type):
+    cleaned_data.append(num_adults)
+    cleaned_data.append(num_children)
+    cleaned_data.append(num_infants_in_seat)
+    cleaned_data.append(num_infants_on_lap)
+    cleaned_data.append(seating_class)
+    cleaned_data.append(round_trip)
+    cleaned_data.append(airplane_type)
+    return cleaned_data
 
+def pipeline(cleaned_data, user_data):
+    '''Pipeline to store data into SQL database'''
+    #['348', '1', 'Frontier', 'Baltimore/Washington International Thurgood Marshall Airport', '6:44 PM', 'Sunday, January 5', 'Denver International Airport', '7:04 AM', 'Monday, January 6', '14 hr 20 min', '1', '8 hr 22 min', 'Hartsfield-Jackson Atlanta International Airport', 'Atlanta', '0', '0', 2, 1, 0, 0, 'Economy', True, 'Airbus A320neo']
+    # Initialize PostgreSQL DB
+    connection, cursor = intializeDatabase()
+    '''
+    insertIntoAirlines()
+    insertIntoAirplanes()
+    insertIntoAirports()
+    insertIntoRoundTrips()
+    insertIntoflight_features()
+    inserIntoLayovers()
+    '''
+    ttl_passengers = 0
+    for num in cleaned_data[16:19]:
+        ttl_passengers += num
+        
+    print(f"Inserting \"{cleaned_data[2]}\" into database...\n")
+    cursor.execute(
+        "INSERT INTO airlines (airline_name) VALUES (%s)", 
+        (cleaned_data[2],))
+    connection.commit()
+    cursor.execute( 
+        "SELECT airline_id FROM airlines WHERE airline_name = %s",
+        (cleaned_data[2],))
+    airline_id = cursor.fetchone()[0]
+    ''''''''
+    print(f"Inserting \"{cleaned_data[-1]}\" into database...")
+    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s)",
+                   (cleaned_data[-1], ))
+    connection.commit()
+    cursor.execute(
+        "SELECT airplane_id FROM airplanes WHERE airplane_type = %s",
+        (cleaned_data[-1],)
+        )
+    airplane_id = cursor.fetchone()[0]
+    ''''''
+    print(f"Inserting \"{cleaned_data[3]}\" into database...")
+    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
+                (cleaned_data[3], user_data[0], )) # Origin airport as well as city
+    connection.commit()
+    cursor.execute(
+        "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
+        (cleaned_data[3], user_data[0], )
+        )
+    departure_airport_id = cursor.fetchone()[0]
+    
+    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
+                    (cleaned_data[6], user_data[1], )) # destination airport as well as city
+    connection.commit()
+    cursor.execute(
+        "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
+        (cleaned_data[6], user_data[1], )
+        )
+    arrival_airport_id = cursor.fetchone()[0]
+    
+    roundtrip_id = None
+    if cleaned_data[-2] == True: # if roundtrip
+        rnd_trip_passengers = 0
+        print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
+        cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s)",
+                (cleaned_data[-1], ttl_passengers, ) )
+        connection.commit()
+        cursor.execute(
+        "SELECT roundtrip_id FROM roundtrips WHERE total_price = %s AND num_passengers = %s",
+        (cleaned_data[-1], ttl_passengers, )
+        )
+        roundtrip_id = cursor.fetchone()[0]
+        
+    print(f"Inserting data into database...")
+    cursor.execute(
+        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (cleaned_data[0],  roundtrip_id, "Outgoing", cleaned_data[1], airline_id, departure_airport_id, cleaned_data[4],  cleaned_data[5], arrival_airport_id, cleaned_data[7], cleaned_data[8], cleaned_data[9], cleaned_data[10], cleaned_data[14], cleaned_data[15], cleaned_data[16], cleaned_data[17], cleaned_data[18], cleaned_data[19], cleaned_data[20], cleaned_data[21], airplane_id, )
+            )  
+    connection.commit()
+    cursor.execute(
+        "SELECT flight_id FROM flight_features WHERE flight_price = %s AND roundtrip_id IS NOT DISTINCT FROM %s AND flight_direction = %s AND num_stops = %s AND airline_id = %s AND departure_airport_id = %s AND departure_time = %s AND departure_date = %s AND arrival_airport_id = %s AND arrival_time = %s AND arrival_date = %s AND travel_duration = %s AND num_layovers = %s AND num_carryon = %s AND num_checked = %s AND num_adults = %s AND num_children = %s AND num_infants_in_seat = %s AND num_infants_on_lap = %s AND seating_class = %s AND round_trip = %s AND airplane_type_id = %s",
+        (cleaned_data[0],  roundtrip_id, "Outgoing", cleaned_data[1], airline_id, departure_airport_id, cleaned_data[4],  cleaned_data[5], arrival_airport_id, cleaned_data[7], cleaned_data[8], cleaned_data[9], cleaned_data[10], cleaned_data[14], cleaned_data[15], cleaned_data[16], cleaned_data[17], cleaned_data[18], cleaned_data[19], cleaned_data[20], cleaned_data[21], airplane_id, )
+        )
+    flight_id = cursor.fetchone()[0]
+    ''''''
+    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
+                    (cleaned_data[12], cleaned_data[12+1], ) ) # any layovers
+    connection.commit()
+    cursor.execute(
+        "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
+        (cleaned_data[12], cleaned_data[12+1], )
+        )
+    layover_airport_id = cursor.fetchone()[0]
+    
+        
+    print(f"Inserting \"{cleaned_data[11]}\" into database...\n")
+    cursor.execute(
+        "INSERT INTO layovers (flight_id, layover_airport_id, layover_duration) VALUES (%s, %s, %s)",
+        (flight_id, layover_airport_id, cleaned_data[11],) 
+        )
+    connection.commit()
+    closeConnection(connection, cursor)
+    print("\n\tFinished.")
+
+    
+def driver():
+    # Round-trip flight details
+    URL = "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI1LTAxLTEzagcIARIDQldJcgwIAhIIL20vMDJjbDEaIxIKMjAyNS0wMS0yMmoMCAISCC9tLzAyY2wxcgcIARIDQldJQAFIAXABggELCP___________wGYAQE&tfu=EgIIACIA&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmVSBGABeAE"
+    driver, wait = intialize(URL)
+    origin = "Baltimore" # origin, dest = getUserLocations()
+    dest = "Denver"
+    num_adults, num_children, num_infants_in_seat, num_infants_on_lap = 2, 1, 0, 0 #getUserNumPass()
+    accessNumOfPassengers(wait, driver, num_adults, num_children, num_infants_in_seat, num_infants_on_lap) # Access the number of passengers for user
+    seating_class = "Economy" #getUserSeatingClass()
+    accessSeatingClass(wait, driver, seating_class) # Access the seating class for user
+    round_trip = False #getUserRoundTrip()
+    changeRoundTrip(wait, driver, round_trip)
+    airplane_type = retrieveAirplaneType(driver)
+    data = ['348 US dollars', '1 stop flight', 'with Frontier', 'Leaves Baltimore/Washington International Thurgood Marshall Airport at 6:44 PM on Sunday, January 5', 'arrives at Denver International Airport at 7:04 AM on Monday, January 6', 'Total duration 14 hr 20 min', 'Layover (1 of 1)', 'is a 8 hr 22 min', 'layover at Hartsfield-Jackson Atlanta International Airport in Atlanta', '0 carry-on bags', '0 checked bags']
+    cleaned = clean_data(data)
+    cleaned = concate(cleaned, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, airplane_type)
+    print(cleaned)
+    pipeline(cleaned, [origin, dest])
+    exit()
     
     '''
     #Retrieve User Input
     accessSpecificDates(wait, driver, "1/5/2025", "1/10/2025") # Access Specific Dates for user
     accessFlexibleDates(wait, driver, "January", "2 weeks") # Access Flexible Dates for user
-    accessNumOfPassengers(wait, driver, 2, 1, 1, 1) # Access the number of passengers for user
-    accessSeatingClass(wait, driver, "Prem Econ") # Access the seating class for user
-    round_trip = False
-    if not round_trip:
-        changeRoundTrip(wait, driver) # Access the round trip or one-way for user
     accessOriginDestination(wait, driver, "BWI", "LAX") # Access the origin and destination for user
 
     
@@ -353,13 +704,13 @@ def main():
     
     exit()
     
-    '''
+    
     
     
     # NLP Stuff for data scrape
     # Google Flights Flights page
-    driver = webdriver.Chrome()
-    driver.get("https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI1LTAxLTA1agcIARIDQldJcgwIAhIIL20vMDJjbDEaIxIKMjAyNS0wMS0wNmoMCAISCC9tLzAyY2wxcgcIARIDQldJQAFIAXABggELCP___________wGYAQE&tfu=EgYIABABGAA&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmVSBGABeAE")
+    #driver = webdriver.Chrome()
+    #driver.get("https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI1LTAxLTA1agcIARIDQldJcgwIAhIIL20vMDJjbDEaIxIKMjAyNS0wMS0wNmoMCAISCC9tLzAyY2wxcgcIARIDQldJQAFIAXABggELCP___________wGYAQE&tfu=EgYIABABGAA&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmVSBGABeAE")
     #Retrieve Departing flights
     best_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
     randomHash = {}
@@ -384,10 +735,10 @@ def main():
     time.sleep(5)
     
     exit()
-    
+    '''
 
 nlp = spacy.load("en_core_web_sm")
 matcher = Matcher(nlp.vocab)
-main()
+driver()
 
 # aria-label='Some text' is your best bet for finding elements
