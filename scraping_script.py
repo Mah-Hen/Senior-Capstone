@@ -8,6 +8,7 @@ import spacy
 from spacy.matcher import Matcher 
 import re 
 import psycopg2
+from datetime import datetime
 
 
 
@@ -304,6 +305,104 @@ def get_search_results(driver):
             doc = nlp(aria_label)
             extractFlightInfo(doc)
             
+
+def getUserOriginDest():
+    '''Retrieve the Seating Class'''
+    while True:
+        try:
+            origin = input("Where from? ")
+            origin_match = re.search("[a-zA-Z]+, [a-zA-Z]+", origin)
+            if len(origin) < 2 or origin_match is None:
+                print("Please enter a location. ")
+            else:
+                break
+        except:
+            print("Please enter a location.")
+    
+    while True:
+        try:
+            dest = input("Where to?: ")
+            dest_match = re.search("[a-zA-Z]+, [a-zA-Z]+", dest)
+            if len(dest) < 2 or dest_match is None:
+                print("Please enter a location. ")
+            else:
+                break
+        except:
+            print("Please enter a location.")
+            
+    return origin, dest
+
+def add_months(current_date, months_to_add):
+    new_date = datetime(current_date.year + (current_date.month + months_to_add - 1) // 12,
+                        (current_date.month + months_to_add - 1) % 12 + 1,
+                        current_date.day, current_date.hour, current_date.minute, current_date.second)
+    return new_date
+def getUserDate():
+    '''Definitely fix the date validation later on'''
+    flexible_date = True
+    while True:
+        try:
+            date_type = input("Would you want a flexible or specific way to enter your departure and arrival dates? ")
+            if date_type.lower() in ["flexible", "specific"]:
+                break
+            else:
+                print("Please enter valid type.")
+        except:
+            print("Please enter valid type.")
+    
+    if date_type.lower() == "flexible":
+        flex_months = []
+        for num in range(6):
+            current_date = datetime.now()
+            future_month = add_months(current_date, num)
+            flex_months.append(str(future_month.strftime("%B")))
+        
+        while True:
+            try:
+                user_month = input(f"Which month? All {' '.join([month for month in flex_months])} ")
+                if user_month in flex_months or user_month.lower() == "all":
+                    break
+                else:
+                    print("Choose one of the options above.")
+            except:
+                print("Choose one of the options above.")
+
+        while True:
+            try:
+                user_length = input(f"How Long? Weekend, 1 Week, 2 Weeks ")
+                if user_length in ["Weekend", "1 Week", "2 Weeks"]:
+                    break
+                else:
+                    print("Choose one of the options above.")
+            except:
+                print("Choose one of the options above.")
+        return user_month, user_length, flexible_date
+    else:
+        flexible_date = False
+        while True:
+            try:
+                departure_date = input("When's the date to depart? ")
+                date_match = re.match(r"\d+(/)\d+(/)\d+", departure_date)
+                if date_match is not None:
+                    break
+                else:
+                    print("Enter a valid date.")  
+            except:
+                print("Enter a valid date.")  
+                
+        while True:
+            try:
+                arrival_date = input("When's the date to arrive? ")
+                date_match = re.match(r"\d+(/)\d+(/)\d+", arrival_date)
+                if date_match is not None:
+                    break
+                else:
+                    print("Enter a valid date.")  
+            except:
+                print("Enter a valid date.")  
+        add_months(datetime.now(), 6)
+    
+    return departure_date, arrival_date, flexible_date
             
 def getUserNumPass():
     '''Retrieve the number of passengers'''
@@ -673,8 +772,16 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
+    origin, dest = getUserOriginDest()
+    print(origin, dest)
+
+    exit()
+    URL = "https://www.google.com/travel/explore?tfs=CBwQAxoaEgoyMDI0LTEyLTEyagwIAhIIL20vMDk0anYaGhIKMjAyNC0xMi0xOXIMCAISCC9tLzA5NGp2QAFIAXABggELCP___________wGYAQGyAQoSCC9tLzAzbDJu&tfu=GgA&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmUSLQoIL20vMDNsMm4SB0hvdXN0b24aGAoKMjAyNC0xMi0xMhIKMjAyNC0xMi0xOVIEYAF4AQ"
+    driver, wait = intialize(URL)
+    
+    exit()
     # Round-trip flight details
-    URL = "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI1LTAxLTEzagcIARIDQldJcgwIAhIIL20vMDJjbDEaIxIKMjAyNS0wMS0yMmoMCAISCC9tLzAyY2wxcgcIARIDQldJQAFIAXABggELCP___________wGYAQE&tfu=EgIIACIA&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmVSBGABeAE"
+    URL = ""
     driver, wait = intialize(URL)
     origin = "Baltimore" # origin, dest = getUserLocations()
     dest = "Denver"
