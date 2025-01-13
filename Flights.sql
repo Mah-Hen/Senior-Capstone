@@ -28,6 +28,7 @@ CREATE TABLE flight_features(
 	flight_direction VARCHAR(10) NOT NULL, 
 	num_stops INT,
 	airline_id INT REFERENCES airlines (airline_id), 
+	search_date DATE, 
 	departure_airport_id INT REFERENCES airports(airport_id), 
 	departure_time TIME, 
 	departure_date DATE, 

@@ -59,6 +59,7 @@ def accessTripLength(wait):
     time.sleep(2) 
     
 def accessSpecificDates(wait, driver, departure_date, return_date):
+    accessTripLength(wait)
     '''Specific Dates'''
     #Click Specific Dates Button
     specific_dates_button = driver.find_element(By.CSS_SELECTOR, "div[jsname='mAKh3e']").find_element(By.CSS_SELECTOR, "button[id='sNlbpb']")
@@ -94,45 +95,29 @@ def accessSpecificDates(wait, driver, departure_date, return_date):
     
 def accessFlexibleDates(wait, driver, month, week_type):
     '''Flexible Dates'''
-    accessTripLength(wait) # Access Trip-Length entry-button for user
+    #accessTripLength(wait) # Access Trip-Length entry-button for user
+    accessTripLength(wait)
+    current_month = datetime.now().month
+    print(current_month) 
+    button_number = month-current_month
+    try: 
+        if month == "all":
+            all_months_button = driver.find_element(By.CSS_SELECTOR, "span[data-value='0']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
+            all_months_button.click()
+            time.sleep(1)
+    except:
+        month_button = driver.find_element(By.CSS_SELECTOR, f"span[data-value='{button_number+1}']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
+        month_button.click
     
-    
-    # Select the month for user
-    first_month_button = driver.find_element(By.CSS_SELECTOR, "span[data-value='1']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    first_month_button.click()
-    time.sleep(1)
-    second_month_button= driver.find_element(By.CSS_SELECTOR, "span[data-value='2']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    second_month_button.click()
-    time.sleep(1)
-    third_month_button= driver.find_element(By.CSS_SELECTOR, "span[data-value='3']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    third_month_button.click()
-    time.sleep(1)
-    fourth_month_button= driver.find_element(By.CSS_SELECTOR, "span[data-value='4']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    fourth_month_button.click()
-    time.sleep(1)
-    fifth_month_button= driver.find_element(By.CSS_SELECTOR, "span[data-value='5']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    fifth_month_button.click()
-    time.sleep(1)
-    sixth_month_button= driver.find_element(By.CSS_SELECTOR, "span[data-value='6']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    sixth_month_button.click()
-    time.sleep(1)
-    all_months_button = driver.find_element(By.CSS_SELECTOR, "span[data-value='0']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    all_months_button.click()
-    time.sleep(1)
-    
-    # Find Trip-Length Div
-    trip_duration_div = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Trip duration']")   
-    #two_week_button = trip_duration_div.find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")
-    #two_week_button.click()
-    span_text = "2 weeks"  # You can change this to any text you're looking for regarding trip duration (Weekend, 1 week, 2 weeks)
-    
+
+    #span_text = "2 weeks"  # You can change this to any text you're looking for regarding trip duration (Weekend, 1 week, 2 weeks)
     # Find the span element with the text of the week_type
+    trip_duration_div = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Trip duration']")   
     span = trip_duration_div.find_element(By.XPATH, f".//span[normalize-space(text())='{week_type}']") # span_text
     
     # Access the button element
     button = span.find_element(By.XPATH, "..//..//..//..//button")
     button.click()
-    time.sleep(2)
     
     #Click Done Button
     div = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "div[class='ohKsQc']")))
@@ -223,7 +208,6 @@ def accessOriginDestination(wait, driver, origin, destination):
     #Retrieve Origin input field
     element = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Where from?"]')
     element.clear()
-    destination = "BWI "
     element.send_keys(origin+"") # Send keys to the input field
     time.sleep(2)
     #Retrieve the dropdown list
@@ -260,12 +244,76 @@ def access_Flights(driver):
     
     '''View More Flights'''
     view_more_flights_button = driver.find_element(By.XPATH, "//button[@aria-label='View more flights']")
-    # Scroll the element into view using JavaScript so we can click on the button
-    driver.execute_script("arguments[0].scrollIntoView(true);", view_more_flights_button)
+    driver.find_element(By.TAG_NAME, "Body").send_keys(Keys.HOME)
     view_more_flights_button.click()
-    time.sleep(5)
+    time.sleep(2)
+    # Scroll the element into view using JavaScript so we can click on the button
+    driver.find_element(By.TAG_NAME, "Body").send_keys(Keys.HOME) #driver.execute_script("arguments[0].scrollIntoView(true);", view_more_flights_button)
+    time.sleep(1)
     
-    # loper to continue
+def retrieveFlightDetails(driver, round_trip):
+    #Flight Details    
+    all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+    flight_info_hash = {}
+    
+    for result in all_results:
+        try:
+            aria_label = result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")
+        except:
+            print("")
+        if aria_label is not None:
+            print(aria_label + "\n")
+            # Call NLP function to extract flight information
+            #Airplane Type
+            dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
+            dropdown_button.click()
+            time.sleep(2)
+            div_element = result.find_element(By.CSS_SELECTOR, "div[jsname='XxAJue']").find_element(By.CSS_SELECTOR, "div[jsname='lVbzR']")
+            div_element = div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
+            span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
+            airplane_type = span_elements[3].text
+            flight_info_hash["Airplane_Type"] = airplane_type
+            
+            doc = nlp(aria_label)
+            flight_info_hash["Flight_Info"] = extractFlightInfo(doc)
+            
+            '''Round Trip'''
+            if round_trip:
+                prev_url = driver.current_url
+                cnt = 0
+                while True:
+                    # Error here
+                    try:
+                        all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+                        select_flight = all_results[cnt].find_element(By.XPATH, ".//div[@class='gQ6yfe m7VU8c']")
+                        select_flight.click()
+                    except:
+                        break
+                    try:
+                        view_more_flights = driver.find_element(By.XPATH, ".//div[@jsname='YdtKid']").find_element(By.XPATH, ".//button[@jsname='ornU0b']")
+                        view_more_flights.click()
+                    except:
+                        print("")
+                        
+                    time.sleep(2)
+                    more_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+                    randomHash = {}
+                    for more_result in more_results:
+                        try:
+                            aria_label = more_result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")
+                        except:
+                            break
+                        if aria_label is not None:
+                            doc = nlp(aria_label)
+                            print(aria_label + "\n")
+                            flight_info_hash["Round_Trip_Info"] = extractFlightInfo(doc)
+                        time.sleep(2)
+                        
+                    cnt += 1
+                    driver.get(prev_url)
+                    #all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+
+    
     
 def retrieveAirplaneType(driver):
     all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
@@ -278,131 +326,86 @@ def retrieveAirplaneType(driver):
         span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
         airplane_type = span_elements[3].text
         return airplane_type
-    
-def get_search_results(driver):
-    URL = "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI1LTAxLTA1agcIARIDQldJcgwIAhIIL20vMDJjbDEaIxIKMjAyNS0wMS0wNmoMCAISCC9tLzAyY2wxcgcIARIDQldJQAFIAXABggELCP___________wGYAQE&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmVSBGABeAE"
-    driver, wait = intialize(URL) # Initialize the driver and wait objects
-    accessSeatingClass(wait, driver, "Prem Econ") # Access the seating class for user
-    exit()
-    '''View More Flights'''
-    view_more_flights_button = driver.find_element(By.XPATH, "//button[@aria-label='View more flights']")
-    # Scroll the element into view using JavaScript so we can click on the button
-    driver.execute_script("arguments[0].scrollIntoView(true);", view_more_flights_button)
-    view_more_flights_button.click()
-    time.sleep(5)
-    
-    all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
-    randomHash = {}
-    
-    for result in all_results:
-        try:
-            aria_label = result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")
-        except:
-            print("")
-        if aria_label is not None:
-            print(aria_label + "\n")
-            # Call NLP function to extract flight information
-            doc = nlp(aria_label)
-            extractFlightInfo(doc)
-            
 
-def getUserOriginDest():
-    '''Retrieve the Seating Class'''
-    while True:
-        try:
-            origin = input("Where from? ")
-            origin_match = re.search("[a-zA-Z]+, [a-zA-Z]+", origin)
-            if len(origin) < 2 or origin_match is None:
-                print("Please enter a location. ")
-            else:
-                break
-        except:
-            print("Please enter a location.")
-    
-    while True:
-        try:
-            dest = input("Where to?: ")
-            dest_match = re.search("[a-zA-Z]+, [a-zA-Z]+", dest)
-            if len(dest) < 2 or dest_match is None:
-                print("Please enter a location. ")
-            else:
-                break
-        except:
-            print("Please enter a location.")
-            
-    return origin, dest
 
-def add_months(current_date, months_to_add):
-    new_date = datetime(current_date.year + (current_date.month + months_to_add - 1) // 12,
-                        (current_date.month + months_to_add - 1) % 12 + 1,
-                        current_date.day, current_date.hour, current_date.minute, current_date.second)
-    return new_date
-def getUserDate():
-    '''Definitely fix the date validation later on'''
-    flexible_date = True
-    while True:
-        try:
-            date_type = input("Would you want a flexible or specific way to enter your departure and arrival dates? ")
-            if date_type.lower() in ["flexible", "specific"]:
-                break
-            else:
-                print("Please enter valid type.")
-        except:
-            print("Please enter valid type.")
     
-    if date_type.lower() == "flexible":
-        flex_months = []
-        for num in range(6):
-            current_date = datetime.now()
-            future_month = add_months(current_date, num)
-            flex_months.append(str(future_month.strftime("%B")))
-        
-        while True:
-            try:
-                user_month = input(f"Which month? All {' '.join([month for month in flex_months])} ")
-                if user_month in flex_months or user_month.lower() == "all":
-                    break
-                else:
-                    print("Choose one of the options above.")
-            except:
-                print("Choose one of the options above.")
+    
+def extractFlightInfo(nlp_doc):
+    '''Extracting flight information using spacy's NLP'''
+    '''The hardest part really. Took a couple weeks to get this right'''
+    extracted = []
+    price_pattern = [
+        [{"POS": "NUM"}, {"ORTH": "US"}, {"ORTH": "dollars"}] 
+        ]
+    num_stops_pattern = [
+        [{"POS": "NUM"}, {"LOWER": "stop"}, {"LOWER": "flight"}]
+    ]
+    
+    duration_pattern = [
+         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
+    ]
+    '''May need to change later'''
+    num_layover_pattern = [
+        [{"TEXT": "Layover"}, {"TEXT": "("}, {"POS": "NUM"}, {"TEXT": "of"}, {"POS": "NUM"}, {"TEXT": ")"}]
+    ]
+    
+    layover_duration_pattern = [
+        [{"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}, {"LOWER": "layover"}]
+    ]
+    
+    departure_time_pattern = [
+        [
+        {"TEXT": "Leaves"}, {"POS": "PROPN", "OP": "+"}, {"POS": "SYM", "OP": "?"}, {"POS": "PROPN", "OP": "+"}, {"TEXT": "Airport"},
+        {"LOWER": "at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"}, {"LOWER": {"IN": ["am", "pm"]}},
+        {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","},
+        {"POS": "PROPN"},{"POS": "NUM"},
+        ]
+    ]
+    
+    arrival_time_pattern = [
+       [{"TEXT":"arrives"}, {"LOWER":"at"}, {"POS": "PROPN", "OP": "+"},
+        {"POS": "SYM", "OP": "?"}, {"TEXT": "Airport"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"}, 
+        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}]
+       ]
+    
+    layover_duration_pattern = [
+        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
+    ]
+    
+    airline_pattern = [
+        [{"LOWER": "with"}, {"POS": "PROPN"}]
+    ]
+    connecting_airport_pattern = [
+        [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM"]}, "OP":"?"}, 
+         {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN"}]
+        ]
+    num_of_carryon_pattern = [
+        [{"POS": "NUM"}, {"LOWER": "carry"}, {"LOWER":"-"}, {"LOWER":"on"}, {"LOWER": "bags"}]
+    ]
+    num_of_checked_pattern = [
+        [{"POS": "NUM"}, {"LOWER": "checked"}, {"LOWER": "bags"}]
+    ]
+    
+    matcher.add("FLIGHT_PRICE", price_pattern) # correct
+    matcher.add("NUM_STOPS", num_stops_pattern) # correct
+    matcher.add("FLIGHT_DURATION", duration_pattern) # correct
+    matcher.add("NUM_LAYOVERS", num_layover_pattern) # correct
+    matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
+    matcher.add("DEPARTURE_TIME", departure_time_pattern)
+    matcher.add("ARRIVAL_TIME", arrival_time_pattern)
 
-        while True:
-            try:
-                user_length = input(f"How Long? Weekend, 1 Week, 2 Weeks ")
-                if user_length in ["Weekend", "1 Week", "2 Weeks"]:
-                    break
-                else:
-                    print("Choose one of the options above.")
-            except:
-                print("Choose one of the options above.")
-        return user_month, user_length, flexible_date
-    else:
-        flexible_date = False
-        while True:
-            try:
-                departure_date = input("When's the date to depart? ")
-                date_match = re.match(r"\d+(/)\d+(/)\d+", departure_date)
-                if date_match is not None:
-                    break
-                else:
-                    print("Enter a valid date.")  
-            except:
-                print("Enter a valid date.")  
-                
-        while True:
-            try:
-                arrival_date = input("When's the date to arrive? ")
-                date_match = re.match(r"\d+(/)\d+(/)\d+", arrival_date)
-                if date_match is not None:
-                    break
-                else:
-                    print("Enter a valid date.")  
-            except:
-                print("Enter a valid date.")  
-        add_months(datetime.now(), 6)
+    matcher.add("AIRLINE", airline_pattern) # correct
+    matcher.add("CONNECTING_AIRPORT", connecting_airport_pattern)
+    matcher.add("NUM_CARRYON", num_of_carryon_pattern) # correct
+    matcher.add("NUM_CHECKED", num_of_checked_pattern) # correct
+    matches = matcher(nlp_doc)
+    for match_id, start, end in matches:
+        span = nlp_doc[start:end]
+        print(span.text)
+        extracted.append(span.text)
+    return clean_data(extracted) 
+    # Get round trip or one way from user input
     
-    return departure_date, arrival_date, flexible_date
             
 def getUserNumPass():
     '''Retrieve the number of passengers'''
@@ -499,81 +502,7 @@ def accessroundTripInfo():
                 print(aria_label + "\n")
             time.sleep(2)
 
-def extractFlightInfo(nlp_doc):
-    '''Extracting flight information using spacy's NLP'''
-    '''The hardest part really. Took a couple weeks to get this right'''
-    extracted = []
-    price_pattern = [
-        [{"POS": "NUM"}, {"ORTH": "US"}, {"ORTH": "dollars"}] 
-        ]
-    num_stops_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "stop"}, {"LOWER": "flight"}]
-    ]
-    
-    duration_pattern = [
-         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
-    ]
-    '''May need to change later'''
-    num_layover_pattern = [
-        [{"TEXT": "Layover"}, {"TEXT": "("}, {"POS": "NUM"}, {"TEXT": "of"}, {"POS": "NUM"}, {"TEXT": ")"}]
-    ]
-    
-    layover_duration_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}, {"LOWER": "layover"}]
-    ]
-    
-    departure_time_pattern = [
-        [
-        {"TEXT": "Leaves"}, {"POS": "PROPN", "OP": "+"}, {"POS": "SYM", "OP": "?"}, {"POS": "PROPN", "OP": "+"}, {"TEXT": "Airport"},
-        {"LOWER": "at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"}, {"LOWER": {"IN": ["am", "pm"]}},
-        {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","},
-        {"POS": "PROPN"},{"POS": "NUM"},
-        ]
-    ]
-    
-    arrival_time_pattern = [
-       [{"TEXT":"arrives"}, {"LOWER":"at"}, {"POS": "PROPN", "OP": "+"},
-        {"POS": "SYM", "OP": "?"}, {"TEXT": "Airport"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"}, 
-        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}]
-       ]
-    
-    layover_duration_pattern = [
-        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
-    ]
-    
-    airline_pattern = [
-        [{"LOWER": "with"}, {"POS": "PROPN"}]
-    ]
-    connecting_airport_pattern = [
-        [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM"]}, "OP":"?"}, 
-         {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN"}]
-        ]
-    num_of_carryon_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "carry"}, {"LOWER":"-"}, {"LOWER":"on"}, {"LOWER": "bags"}]
-    ]
-    num_of_checked_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "checked"}, {"LOWER": "bags"}]
-    ]
-    
-    matcher.add("FLIGHT_PRICE", price_pattern) # correct
-    matcher.add("NUM_STOPS", num_stops_pattern) # correct
-    matcher.add("FLIGHT_DURATION", duration_pattern) # correct
-    matcher.add("NUM_LAYOVERS", num_layover_pattern) # correct
-    matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
-    matcher.add("DEPARTURE_TIME", departure_time_pattern)
-    matcher.add("ARRIVAL_TIME", arrival_time_pattern)
 
-    matcher.add("AIRLINE", airline_pattern) # correct
-    matcher.add("CONNECTING_AIRPORT", connecting_airport_pattern)
-    matcher.add("NUM_CARRYON", num_of_carryon_pattern) # correct
-    matcher.add("NUM_CHECKED", num_of_checked_pattern) # correct
-    matches = matcher(nlp_doc)
-    for match_id, start, end in matches:
-        span = nlp_doc[start:end]
-        print(span.text)
-        extracted.append(span.text)
-    clean_data(extracted) 
-    # Get round trip or one way from user input
 
 def clean_data(data):
     '''Extracting/Cleaning the extracted data using regex'''
@@ -654,9 +583,6 @@ def clean_data(data):
     print(num_checked.group())
     
     return cleaned_data
-    '''Clean the data'''
-    '''Create a pipeline to store into SQL database'''
-    # Need: num of passangers, seating class, round trip or one way
     
 
     
@@ -772,13 +698,32 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
-    origin, dest = getUserOriginDest()
-    print(origin, dest)
-
-    exit()
-    URL = "https://www.google.com/travel/explore?tfs=CBwQAxoaEgoyMDI0LTEyLTEyagwIAhIIL20vMDk0anYaGhIKMjAyNC0xMi0xOXIMCAISCC9tLzA5NGp2QAFIAXABggELCP___________wGYAQGyAQoSCC9tLzAzbDJu&tfu=GgA&tcfs=ChUKCC9tLzA5NGp2GglCYWx0aW1vcmUSLQoIL20vMDNsMm4SB0hvdXN0b24aGAoKMjAyNC0xMi0xMhIKMjAyNC0xMi0xOVIEYAF4AQ"
+    URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
+    accessOriginDestination(wait, driver, "BWI ", "Denver ")
+    access_Flights(driver)
+    exit()
+    URL = "https://www.google.com/travel/explore"
+    driver, wait = intialize(URL)
+    search_date = datetime.now()
     
+    origin, dest = getUserOriginDest()
+    accessOriginDestination(wait, driver, origin, dest)
+    round_trip = getUserRoundTrip()
+    changeRoundTrip(wait, driver, round_trip)
+    num_adults, num_child, num_infants_in_seat, num_infants_on_lap = getUserNumPass()
+    accessNumOfPassengers(wait, driver, num_adults, num_children, num_infants_in_seat, num_infants_on_lap)
+    date1, date2, flexible_date = getUserDate() # date1 = user_month, date2 = user_length, flexible_date = True| or | # date1 = departure_date, date2 = arrival_date # flexible_date = False
+    if flexible_date:
+        accessFlexibleDates(wait, driver, date1, date2)
+    else:
+        accessSpecificDates(wait, driver, date1, date2)
+    seating_class = getUserSeatingClass()
+    accessSeatingClass(wait, driver, seating_class)
+    access_Flights(driver)
+    
+    
+    # retrieve search date
     exit()
     # Round-trip flight details
     URL = ""
