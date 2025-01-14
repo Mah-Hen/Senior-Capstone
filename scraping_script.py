@@ -254,28 +254,35 @@ def access_Flights(driver):
 def retrieveFlightDetails(driver, round_trip):
     #Flight Details    
     all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
-    flight_info_hash = {}
+    flight_info = []
     
     for result in all_results:
+        tuple_dict = {}
         try:
             aria_label = result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")
         except:
             print("")
         if aria_label is not None:
             print(aria_label + "\n")
+            aria_label = aria_label.replace("\u202f", " ")
             # Call NLP function to extract flight information
             #Airplane Type
-            dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
-            dropdown_button.click()
+            try:
+                dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
+                dropdown_button.click()
+            except:
+                print()
             time.sleep(2)
             div_element = result.find_element(By.CSS_SELECTOR, "div[jsname='XxAJue']").find_element(By.CSS_SELECTOR, "div[jsname='lVbzR']")
             div_element = div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
             span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
             airplane_type = span_elements[3].text
-            flight_info_hash["Airplane_Type"] = airplane_type
+            tuple_dict["Airplane Type"] = airplane_type
             
             doc = nlp(aria_label)
-            flight_info_hash["Flight_Info"] = extractFlightInfo(doc)
+            tuple_dict["One-Way Info"] = extractFlightInfo(doc)
+            
+            
             
             '''Round Trip'''
             if round_trip:
@@ -306,14 +313,18 @@ def retrieveFlightDetails(driver, round_trip):
                         if aria_label is not None:
                             doc = nlp(aria_label)
                             print(aria_label + "\n")
-                            flight_info_hash["Round_Trip_Info"] = extractFlightInfo(doc)
+                            tuple_dict["Round-Trip Info"] = extractFlightInfo(doc)
                         time.sleep(2)
                         
                     cnt += 1
                     driver.get(prev_url)
                     #all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+                    
+        flight_info.append(tuple_dict)
+                    
+    return flight_info
 
-    
+
     
 def retrieveAirplaneType(driver):
     all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
@@ -350,7 +361,8 @@ def extractFlightInfo(nlp_doc):
     ]
     
     layover_duration_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}, {"LOWER": "layover"}]
+        [{"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}, {"LOWER": "layover"}], 
+        [{"POS": "NUM"}, {"LOWER": "min"}, {"LOWER", "layover"}]
     ]
     
     departure_time_pattern = [
@@ -372,6 +384,10 @@ def extractFlightInfo(nlp_doc):
         [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
     ]
     
+    layover_duration_pattern_2 = [
+        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "min"}]
+    ]
+    
     airline_pattern = [
         [{"LOWER": "with"}, {"POS": "PROPN"}]
     ]
@@ -380,7 +396,7 @@ def extractFlightInfo(nlp_doc):
          {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN"}]
         ]
     num_of_carryon_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "carry"}, {"LOWER":"-"}, {"LOWER":"on"}, {"LOWER": "bags"}]
+        [{"POS": "NUM"}, {"LOWER": "carry"}]
     ]
     num_of_checked_pattern = [
         [{"POS": "NUM"}, {"LOWER": "checked"}, {"LOWER": "bags"}]
@@ -391,6 +407,7 @@ def extractFlightInfo(nlp_doc):
     matcher.add("FLIGHT_DURATION", duration_pattern) # correct
     matcher.add("NUM_LAYOVERS", num_layover_pattern) # correct
     matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
+    matcher.add("LAYOVER_DURATION_2", layover_duration_pattern_2) # correct
     matcher.add("DEPARTURE_TIME", departure_time_pattern)
     matcher.add("ARRIVAL_TIME", arrival_time_pattern)
 
@@ -558,8 +575,12 @@ def clean_data(data):
     print(num_layovers.group())
     
     # Extract the layover duration
-    layover_duration = re.search(r"(\d+ hr \d+ min)", data[7])
-    cleaned_data.append(layover_duration.group(1))
+    try:
+        layover_duration = re.search(r"(\d+ hr \d+ min)", data[7])
+        cleaned_data.append(layover_duration.group(1))
+    except:
+        layover_duration = re.search(r"(\d+ min)", data[7])
+        cleaned_data.append(layover_duration.group(1))
     print(layover_duration.group(1))
 
     # Extract layover airport
@@ -698,10 +719,17 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
+    # carryon bags not working in NLP method.
+    text = "From 109 US dollars round trip total. 1 stop flight with Frontier. Leaves Baltimore/Washington International Thurgood Marshall Airport at 6:33 PM on Monday, February 3 and arrives at Denver International Airport at 10:39 PM on Monday, February 3. Total duration 6 hr 6 min. Layover (1 of 1) is a 58 min layover at Detroit Metropolitan Wayne County Airport in Detroit. 0 carry-on bags included. 0 checked bags included.  Select flight"
+    doc = nlp(text)
+    data = extractFlightInfo(doc)
+    exit()
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
     accessOriginDestination(wait, driver, "BWI ", "Denver ")
     access_Flights(driver)
+    extraced_flight_info = retrieveFlightDetails(driver, False)
+    print(extraced_flight_info)
     exit()
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
@@ -721,6 +749,8 @@ def driver():
     seating_class = getUserSeatingClass()
     accessSeatingClass(wait, driver, seating_class)
     access_Flights(driver)
+    retrieveFlightDetails(driver, round_trip)
+    
     
     
     # retrieve search date
