@@ -280,6 +280,8 @@ def retrieveFlightDetails(driver, round_trip):
             tuple_dict["Airplane Type"] = airplane_type
             
             doc = nlp(aria_label)
+            for token in doc:
+                print(f"Token: {token.text}, Lemma: {token.lemma_}, POS: {token.pos_}, Tag: {token.tag_}, Dep: {token.dep_}, Shape: {token.shape_}, is_alpha: {token.is_alpha}, is_stop: {token.is_stop}")
             tuple_dict["One-Way Info"] = extractFlightInfo(doc)
             
             
@@ -320,7 +322,7 @@ def retrieveFlightDetails(driver, round_trip):
                     driver.get(prev_url)
                     #all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
                     
-        flight_info.append(tuple_dict)
+            flight_info.append(tuple_dict)
                     
     return flight_info
 
@@ -352,8 +354,12 @@ def extractFlightInfo(nlp_doc):
         [{"POS": "NUM"}, {"LOWER": "stop"}, {"LOWER": "flight"}]
     ]
     
+    no_stops_pattern = [
+     [{"LOWER": "nonstop"}]   
+    ]
+    
     duration_pattern = [
-         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
+         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM", "OP":"?"}, {"LOWER": "min", "OP":"?"}]
     ]
     '''May need to change later'''
     num_layover_pattern = [
@@ -381,11 +387,15 @@ def extractFlightInfo(nlp_doc):
        ]
     
     layover_duration_pattern = [
-        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}]
+        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM", "OP":"+"}, {"LOWER": "min", "OP":"+"}]
     ]
     
     layover_duration_pattern_2 = [
         [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "min"}]
+    ]
+    
+    layover_duration_pattern_3 = [
+        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"LOWER":"layover"}]
     ]
     
     airline_pattern = [
@@ -395,34 +405,157 @@ def extractFlightInfo(nlp_doc):
         [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM"]}, "OP":"?"}, 
          {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN"}]
         ]
+    connecting_airport_pattern_2 = [
+        [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM"]}, "OP":"?"}, 
+         {"POS":"PROPN", "OP":"+"}, {"TEXT": "Field"}, {"LOWER": "in"}, {"POS": "PROPN"}]
+        ]
     num_of_carryon_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "carry"}]
+        [{"POS": "PUNCT"}, {"LOWER": "carry"}, {"POS":"PUNCT"}, {"LOWER":"on"}]
+    ]
+    num_of_carryon_pattern_2 = [
+        [{"POS": "NUM"}, {"LOWER": "carry"}, {"POS":"PUNCT"}, {"LOWER":"on"}]
     ]
     num_of_checked_pattern = [
         [{"POS": "NUM"}, {"LOWER": "checked"}, {"LOWER": "bags"}]
     ]
+    '''We're here for debugging'''
+    matcher.add("FLIGHT_DURATION", duration_pattern) # correct
+    latest = None
+    matches = matcher(nlp_doc)
+    detect = []
     
+    span = nlp_doc[matches[-1][1]:matches[-1][2]]
+    latest = span.text
+    detect.append(matches[-1][0])
+        
+    extracted.append(latest)
+    matcher.remove("FLIGHT_DURATION")
     matcher.add("FLIGHT_PRICE", price_pattern) # correct
     matcher.add("NUM_STOPS", num_stops_pattern) # correct
-    matcher.add("FLIGHT_DURATION", duration_pattern) # correct
+    matcher.add("NO_STOPS", no_stops_pattern) # correct
     matcher.add("NUM_LAYOVERS", num_layover_pattern) # correct
     matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
     matcher.add("LAYOVER_DURATION_2", layover_duration_pattern_2) # correct
+    matcher.add("LAYOVER_DURATION_3", layover_duration_pattern_3) # correct
     matcher.add("DEPARTURE_TIME", departure_time_pattern)
     matcher.add("ARRIVAL_TIME", arrival_time_pattern)
 
     matcher.add("AIRLINE", airline_pattern) # correct
     matcher.add("CONNECTING_AIRPORT", connecting_airport_pattern)
+    matcher.add("CONNECTING_AIRPORT_2", connecting_airport_pattern_2)
     matcher.add("NUM_CARRYON", num_of_carryon_pattern) # correct
+    matcher.add("NUM_CARRYON_2", num_of_carryon_pattern_2) # correct
     matcher.add("NUM_CHECKED", num_of_checked_pattern) # correct
     matches = matcher(nlp_doc)
     for match_id, start, end in matches:
         span = nlp_doc[start:end]
         print(span.text)
         extracted.append(span.text)
+    clear_matcher(matcher)
     return clean_data(extracted) 
     # Get round trip or one way from user input
+
+def clear_matcher(matcher):
+    for pattern in list(matcher._patterns.keys()):
+        matcher.remove(pattern)
+
+def getUserOriginDest():
+    '''Retrieve the Seating Class'''
+    while True:
+        try:
+            origin = input("Where from? ")
+            origin_match = re.search("[a-zA-Z]+, [a-zA-Z]+", origin)
+            if len(origin) < 2 or origin_match is None:
+                print("Please enter a location. ")
+            else:
+                break
+        except:
+            print("Please enter a location.")
     
+    while True:
+        try:
+            dest = input("Where to?: ")
+            dest_match = re.search("[a-zA-Z]+, [a-zA-Z]+", dest)
+            if len(dest) < 2 or dest_match is None:
+                print("Please enter a location. ")
+            else:
+                break
+        except:
+            print("Please enter a location.")
+            
+    return origin, dest 
+
+def add_months(current_date, months_to_add):
+    new_date = datetime(current_date.year + (current_date.month + months_to_add - 1) // 12,
+                        (current_date.month + months_to_add - 1) % 12 + 1,
+                        current_date.day, current_date.hour, current_date.minute, current_date.second)
+    return new_date
+
+def getUserDate():
+    '''Definitely fix the date validation later on'''
+    flexible_date = True
+    while True:
+        try:
+            date_type = input("Would you want a flexible or specific way to enter your departure and arrival dates? ")
+            if date_type.lower() in ["flexible", "specific"]:
+                break
+            else:
+                print("Please enter valid type.")
+        except:
+            print("Please enter valid type.")
+    
+    if date_type.lower() == "flexible":
+        flex_months = []
+        for num in range(6):
+            current_date = datetime.now()
+            future_month = add_months(current_date, num)
+            flex_months.append(str(future_month.strftime("%B")))
+        
+        while True:
+            try:
+                user_month = input(f"Which month? All {' '.join([month for month in flex_months])} ")
+                if user_month in flex_months or user_month.lower() == "all":
+                    break
+                else:
+                    print("Choose one of the options above.")
+            except:
+                print("Choose one of the options above.")
+        while True:
+            try:
+                user_length = input(f"How Long? Weekend, 1 Week, 2 Weeks ")
+                if user_length in ["Weekend", "1 Week", "2 Weeks"]:
+                    break
+                else:
+                    print("Choose one of the options above.")
+            except:
+                print("Choose one of the options above.")
+        return user_month, user_length, flexible_date
+    else:
+        flexible_date = False
+        while True:
+            try:
+                departure_date = input("When's the date to depart? ")
+                date_match = re.match(r"\d+(/)\d+(/)\d+", departure_date)
+                if date_match is not None:
+                    break
+                else:
+                    print("Enter a valid date.")  
+            except:
+                print("Enter a valid date.")  
+                
+        while True:
+            try:
+                arrival_date = input("When's the date to arrive? ")
+                date_match = re.match(r"\d+(/)\d+(/)\d+", arrival_date)
+                if date_match is not None:
+                    break
+                else:
+                    print("Enter a valid date.")  
+            except:
+                print("Enter a valid date.")  
+        add_months(datetime.now(), 6)
+    
+    return departure_date, arrival_date, flexible_date
             
 def getUserNumPass():
     '''Retrieve the number of passengers'''
@@ -526,82 +659,98 @@ def clean_data(data):
     cleaned_data = []
     
     # Extract the flight price
-    flight_price = re.search(r'\d+', data[0])
+    flight_price = re.search(r'\d+', data[1])
     cleaned_data.append(flight_price.group())
     print(flight_price.group())
     
     # Extract the number of stops
-    num_stops = re.search(r'\d+', data[1])
-    cleaned_data.append(num_stops.group())
-    print(num_stops.group())
+    if data[2] == "Nonstop":
+        cleaned_data.append("0")
+        print(data[1])
+        # Extract the number of carry-on bags
+        num_carryon = re.search(r"\d+", data[6])
+        cleaned_data.append(num_carryon.group())
+        print(num_carryon.group())
+        
+        # Extract the number of checked bags
+        num_checked = re.search(r"\d+", data[7])
+        cleaned_data.append(num_checked.group())
+        print(num_checked.group())
+            
+    else:
+        # data = [price, # stops, airline, departure info, arrival info, total duration, # layovers, layover duration, layover info, num carryon, num checked]
+        num_stops = re.search(r'\d+', data[2])
+        cleaned_data.append(num_stops.group())
+        print(num_stops.group())
+        '''May Need to change later'''
+        # Extract the number of layovers
+        num_layovers = re.search(r"\d+", data[6]) # 5
+        cleaned_data.append(num_layovers.group())
+        print(num_layovers.group())
+        
+        # Extract the layover duration
+        layover_duration = re.search(r"(\d+ hr \d+ min)", data[7]) # 6
+        if layover_duration is None:
+            layover_duration = re.search(r"(\d+ min)", data[7])
+            if layover_duration is None:
+                layover_duration = re.search(r"(\d+ hr)", data[7])
+        cleaned_data.append(layover_duration.group(1))
+        print(layover_duration.group(1))
+
+        # Extract layover airport
+        layover_airport = re.search(r"at (.+? Airport)", data[8])
+        if layover_airport is None:
+            layover_airport = re.search(r"at (.+? Field)", data[8])
+        cleaned_data.append(layover_airport.group(1))
+        print(layover_airport.group(1))
+
+            # Extract layover city
+            layover_city = re.search(r"in (.+)", data[8])
+            cleaned_data.append(layover_city.group(1))
+            print(layover_city.group(1))
+            
+            # Extract the number of carry-on bags
+            num_carryon = re.search(r"\d+", data[9])
+            cleaned_data.append(num_carryon.group())
+            print(num_carryon.group())
+            
+            # Extract the number of checked bags
+            num_checked = re.search(r"\d+", data[10])
+            cleaned_data.append(num_checked.group())
+            print(num_checked.group())
     
     # Extract the airline
-    airline = re.search(r'\w+\Z', data[2])
+    airline = re.search(r'\w+\Z', data[3])
     cleaned_data.append(airline.group())
     print(airline.group())
     
     # Extract the departure airport, time, and date
-    departure_airport = re.search(r"Leaves (.+? Airport)", data[3])
+    departure_airport = re.search(r"Leaves (.+? Airport)", data[4])
     cleaned_data.append(departure_airport.group(1))
     print(departure_airport.group(1))
-    departure_time = re.search(r"(\d+:\d+ [AP]M)", data[3])
+    departure_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
     cleaned_data.append(departure_time.group(1))
     print(departure_time.group(1))
-    departure_date = re.search(r"(\w+, \w+ \d$)", data[3])
+    departure_date = re.search(r"(\w+, \w+ \d$)", data[4])
     cleaned_data.append(departure_date.group(1))
     print(departure_date.group(1))
     
 
     # Extract the arrival airport, time, and date
-    arrival_airport = re.search(r"arrives at (.+? Airport)", data[4])
+    arrival_airport = re.search(r"arrives at (.+? Airport)", data[5])
     cleaned_data.append(arrival_airport.group(1))
     print(arrival_airport.group(1))
-    arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
+    arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[5])
     cleaned_data.append(arrival_time.group(1))
     print(arrival_time.group(1))
-    arrival_date = re.search(r"(\w+, \w+ \d$)", data[4])
+    arrival_date = re.search(r"(\w+, \w+ \d$)", data[5])
     cleaned_data.append(arrival_date.group(1))
     print(arrival_date.group(1))
     
     # Extract the total duration of the flight
-    total_duration = re.search(r"(\d+ hr \d+ min)", data[5])
+    total_duration = re.search(r"(\d+ hr \d+ min)", data[0])
     cleaned_data.append(total_duration.group(1))
     print(total_duration.group(1))
-    
-    '''May Need to change later'''
-    # Extract the number of layovers
-    num_layovers = re.search(r"\d+", data[6])
-    cleaned_data.append(num_layovers.group())
-    print(num_layovers.group())
-    
-    # Extract the layover duration
-    try:
-        layover_duration = re.search(r"(\d+ hr \d+ min)", data[7])
-        cleaned_data.append(layover_duration.group(1))
-    except:
-        layover_duration = re.search(r"(\d+ min)", data[7])
-        cleaned_data.append(layover_duration.group(1))
-    print(layover_duration.group(1))
-
-    # Extract layover airport
-    layover_airport = re.search(r"at (.+? Airport)", data[8])
-    cleaned_data.append(layover_airport.group(1))
-    print(layover_airport.group(1))
-    
-    # Extract layover city
-    layover_city = re.search(r"in (.+)", data[8])
-    cleaned_data.append(layover_city.group(1))
-    print(layover_city.group(1))
-    
-    # Extract the number of carry-on bags
-    num_carryon = re.search(r"\d+", data[9])
-    cleaned_data.append(num_carryon.group())
-    print(num_carryon.group())
-    
-    # Extract the number of checked bags
-    num_checked = re.search(r"\d+", data[10])
-    cleaned_data.append(num_checked.group())
-    print(num_checked.group())
     
     return cleaned_data
     
@@ -719,10 +868,10 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
-    # carryon bags not working in NLP method.
-    text = "From 109 US dollars round trip total. 1 stop flight with Frontier. Leaves Baltimore/Washington International Thurgood Marshall Airport at 6:33 PM on Monday, February 3 and arrives at Denver International Airport at 10:39 PM on Monday, February 3. Total duration 6 hr 6 min. Layover (1 of 1) is a 58 min layover at Detroit Metropolitan Wayne County Airport in Detroit. 0 carry-on bags included. 0 checked bags included.  Select flight"
-    doc = nlp(text)
-    data = extractFlightInfo(doc)
+    string = 'layover at Dallas Love Field in Dallas'
+    layover_airport = re.search(r"at (.+? Field)", string)
+    #cleaned_data.append(layover_airport.group(1))
+    print(layover_airport.group(1))
     exit()
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
@@ -733,13 +882,12 @@ def driver():
     exit()
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
-    search_date = datetime.now()
     
     origin, dest = getUserOriginDest()
     accessOriginDestination(wait, driver, origin, dest)
     round_trip = getUserRoundTrip()
     changeRoundTrip(wait, driver, round_trip)
-    num_adults, num_child, num_infants_in_seat, num_infants_on_lap = getUserNumPass()
+    num_adults, num_children, num_infants_in_seat, num_infants_on_lap = getUserNumPass()
     accessNumOfPassengers(wait, driver, num_adults, num_children, num_infants_in_seat, num_infants_on_lap)
     date1, date2, flexible_date = getUserDate() # date1 = user_month, date2 = user_length, flexible_date = True| or | # date1 = departure_date, date2 = arrival_date # flexible_date = False
     if flexible_date:
