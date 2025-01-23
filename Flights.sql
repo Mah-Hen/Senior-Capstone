@@ -47,7 +47,8 @@ CREATE TABLE flight_features(
 	num_infants_on_lap INT, 
 	seating_class VARCHAR(255), 
 	round_trip BOOLEAN,
-	airplane_type_id INT REFERENCES airplanes(airplane_id)
+	departure_airplane_type_id INT REFERENCES airplanes(airplane_id)
+	arrival_airplane_type_id INT REFERENCES airplanes(airplane_id)
 	 
 );
 

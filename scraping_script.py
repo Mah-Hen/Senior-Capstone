@@ -273,11 +273,13 @@ def retrieveFlightDetails(driver, round_trip):
             except:
                 print()
             time.sleep(2)
+            # Annoying ass error here
             div_element = result.find_element(By.CSS_SELECTOR, "div[jsname='XxAJue']").find_element(By.CSS_SELECTOR, "div[jsname='lVbzR']")
             div_element = div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
             span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
-            airplane_type = span_elements[3].text
-            tuple_dict["Airplane Type"] = airplane_type
+            departure_airplane_type = span_elements[3].text
+            tuple_dict["Departure Airplane Type"] = departure_airplane_type
+            #tuple_dict[""] = arrival_airplane_type
             
             doc = nlp(aria_label)
             for token in doc:
@@ -351,7 +353,7 @@ def extractFlightInfo(nlp_doc):
         [{"POS": "NUM"}, {"ORTH": "US"}, {"ORTH": "dollars"}] 
         ]
     num_stops_pattern = [
-        [{"POS": "NUM"}, {"LOWER": "stop"}, {"LOWER": "flight"}]
+        [{"POS": "NUM"}, {"LEMMA": "stop"}, {"LOWER": "flight"}]
     ]
     
     no_stops_pattern = [
@@ -452,6 +454,7 @@ def extractFlightInfo(nlp_doc):
         print(span.text)
         extracted.append(span.text)
     clear_matcher(matcher)
+    return extracted
     return clean_data(extracted) 
     # Get round trip or one way from user input
 
@@ -682,27 +685,29 @@ def clean_data(data):
         num_stops = re.search(r'\d+', data[2])
         cleaned_data.append(num_stops.group())
         print(num_stops.group())
+        num_stops = int(num_stops.group()) # Use this to split the if/else logic regarding the number of layovers
         '''May Need to change later'''
         # Extract the number of layovers
-        num_layovers = re.search(r"\d+", data[6]) # 5
-        cleaned_data.append(num_layovers.group())
-        print(num_layovers.group())
+        #num_layovers = re.search(r"\d+", data[6]) # 5
+        #cleaned_data.append(num_layovers.group())
+        #print(num_layovers.group())
         
-        # Extract the layover duration
-        layover_duration = re.search(r"(\d+ hr \d+ min)", data[7]) # 6
-        if layover_duration is None:
-            layover_duration = re.search(r"(\d+ min)", data[7])
+        if num_stops == 1:
+            # Extract the layover duration
+            layover_duration = re.search(r"(\d+ hr \d+ min)", data[7]) # 6
             if layover_duration is None:
-                layover_duration = re.search(r"(\d+ hr)", data[7])
-        cleaned_data.append(layover_duration.group(1))
-        print(layover_duration.group(1))
+                layover_duration = re.search(r"(\d+ min)", data[7])
+                if layover_duration is None:
+                    layover_duration = re.search(r"(\d+ hr)", data[7])
+            cleaned_data.append(layover_duration.group(1))
+            print(layover_duration.group(1))
 
-        # Extract layover airport
-        layover_airport = re.search(r"at (.+? Airport)", data[8])
-        if layover_airport is None:
-            layover_airport = re.search(r"at (.+? Field)", data[8])
-        cleaned_data.append(layover_airport.group(1))
-        print(layover_airport.group(1))
+            # Extract layover airport
+            layover_airport = re.search(r"at (.+? Airport)", data[8])
+            if layover_airport is None:
+                layover_airport = re.search(r"at (.+? Field)", data[8])
+            cleaned_data.append(layover_airport.group(1))
+            print(layover_airport.group(1))
 
             # Extract layover city
             layover_city = re.search(r"in (.+)", data[8])
@@ -710,15 +715,19 @@ def clean_data(data):
             print(layover_city.group(1))
             
             # Extract the number of carry-on bags
-            num_carryon = re.search(r"\d+", data[9])
+            num_carryon = re.search(r"\d+", data[-2])
             cleaned_data.append(num_carryon.group())
             print(num_carryon.group())
             
             # Extract the number of checked bags
-            num_checked = re.search(r"\d+", data[10])
+            num_checked = re.search(r"\d+", data[-1])
             cleaned_data.append(num_checked.group())
             print(num_checked.group())
-    
+            
+        else:
+            layover_info = data[5:-2]
+            for info in layover_info:
+                pass
     # Extract the airline
     airline = re.search(r'\w+\Z', data[3])
     cleaned_data.append(airline.group())
@@ -731,7 +740,7 @@ def clean_data(data):
     departure_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
     cleaned_data.append(departure_time.group(1))
     print(departure_time.group(1))
-    departure_date = re.search(r"(\w+, \w+ \d$)", data[4])
+    departure_date = re.search(r"on (\w+, \w+ \d+)", data[4])
     cleaned_data.append(departure_date.group(1))
     print(departure_date.group(1))
     
@@ -743,12 +752,16 @@ def clean_data(data):
     arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[5])
     cleaned_data.append(arrival_time.group(1))
     print(arrival_time.group(1))
-    arrival_date = re.search(r"(\w+, \w+ \d$)", data[5])
+    arrival_date = re.search(r"on (\w+, \w+ \d+)", data[5])
     cleaned_data.append(arrival_date.group(1))
     print(arrival_date.group(1))
     
     # Extract the total duration of the flight
     total_duration = re.search(r"(\d+ hr \d+ min)", data[0])
+    if total_duration is None:
+        total_duration = re.search(r"(\d+ min)", data[0])
+        if total_duration is None:
+            total_duration = re.search(r"(\d+ hr)", data[0])
     cleaned_data.append(total_duration.group(1))
     print(total_duration.group(1))
     
@@ -868,11 +881,36 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
-    string = 'layover at Dallas Love Field in Dallas'
-    layover_airport = re.search(r"at (.+? Field)", string)
-    #cleaned_data.append(layover_airport.group(1))
-    print(layover_airport.group(1))
-    exit()
+    URL = "https://www.google.com/travel/explore"
+    driver, wait = intialize(URL)
+    accessOriginDestination(wait, driver, "BWI ", "Denver ")
+    access_Flights(driver)
+    all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
+    flight_info = []
+    # Add this back to method up top
+    for result in all_results[:10]:
+        dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
+        dropdown_button.click()
+        driver.execute_script("arguments[0].scrollIntoView(true);", dropdown_button)
+        driver.execute_script("window.scrollBy(0,-850);")
+        
+        time.sleep(2)
+        # Annoying ass error here
+        super_div_element = div_element = result.find_element(By.CSS_SELECTOR, 'div.m9ravf').find_element(By.CSS_SELECTOR, 'div.xOMPfb.MNvMJb')
+        
+        div_element = super_div_element.find_element(By.CSS_SELECTOR, "div.c257Jb.QwxBBf.eWArhb") 
+        span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
+        departure_airplane_type = span_elements[3].text
+        print(departure_airplane_type)
+
+        div_element = super_div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
+        span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
+        arrival_airplane_type = span_elements[3].text
+        print(arrival_airplane_type)
+        #driver.execute_script("arguments[0].scrollIntoView(true);", select_flight)
+        dropdown_button.click()
+       
+    
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
     accessOriginDestination(wait, driver, "BWI ", "Denver ")
