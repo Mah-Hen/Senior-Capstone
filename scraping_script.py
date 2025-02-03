@@ -251,41 +251,54 @@ def access_Flights(driver):
     driver.find_element(By.TAG_NAME, "Body").send_keys(Keys.HOME) #driver.execute_script("arguments[0].scrollIntoView(true);", view_more_flights_button)
     time.sleep(1)
     
-def retrieveFlightDetails(driver, round_trip):
+def retrieveFlightDetails(driver, wait, round_trip):
     #Flight Details    
     all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
     flight_info = []
+    cnt = 0
     
-    for result in all_results:
+    for result in all_results[:10]:
         tuple_dict = {}
+        wait.until(EC.visibility_of_element_located((By.XPATH, ".//div[@class='JMc5Xc']")))
         try:
-            aria_label = result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")
+            aria_label = result.find_element(By.XPATH, ".//div[@class='JMc5Xc']").get_attribute("aria-label")#.find_element(By.CSS_SELECTOR, "div[@class='JMc5Xc']").get_attribute("aria-label") #result.find_element(By.CSS_SELECTOR, ".//div[@class='JMc5Xc']").get_attribute("aria-label") 
         except:
-            print("")
-        if aria_label is not None:
+             break
+        if aria_label:
+            cnt += 1
             print(aria_label + "\n")
             aria_label = aria_label.replace("\u202f", " ")
             # Call NLP function to extract flight information
             #Airplane Type
-            try:
-                dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
-                dropdown_button.click()
-            except:
-                print()
+            dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
+            dropdown_button.click()
+            driver.execute_script("arguments[0].scrollIntoView(true);", dropdown_button)
+            driver.execute_script("window.scrollBy(0,-100);")
+            
             time.sleep(2)
             # Annoying ass error here
-            div_element = result.find_element(By.CSS_SELECTOR, "div[jsname='XxAJue']").find_element(By.CSS_SELECTOR, "div[jsname='lVbzR']")
-            div_element = div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
-            span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
-            departure_airplane_type = span_elements[3].text
-            tuple_dict["Departure Airplane Type"] = departure_airplane_type
-            #tuple_dict[""] = arrival_airplane_type
-            
-            doc = nlp(aria_label)
-            for token in doc:
-                print(f"Token: {token.text}, Lemma: {token.lemma_}, POS: {token.pos_}, Tag: {token.tag_}, Dep: {token.dep_}, Shape: {token.shape_}, is_alpha: {token.is_alpha}, is_stop: {token.is_stop}")
-            tuple_dict["One-Way Info"] = extractFlightInfo(doc)
-            
+            try:
+                super_div_element = div_element = result.find_element(By.CSS_SELECTOR, 'div.m9ravf').find_element(By.CSS_SELECTOR, 'div.xOMPfb.MNvMJb')
+                
+                div_element = super_div_element.find_element(By.CSS_SELECTOR, "div.c257Jb.QwxBBf.eWArhb") 
+                span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
+                departure_airplane_type = span_elements[3].text
+
+                div_element = super_div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
+                span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
+                arrival_airplane_type = span_elements[3].text
+                dropdown_button.click()
+                
+                tuple_dict["Departure Airplane Type"] = departure_airplane_type
+                tuple_dict["Arrival Airplane Type"] = arrival_airplane_type
+                #tuple_dict[""] = arrival_airplane_type
+                
+                doc = nlp(aria_label)
+                for token in doc:
+                    print(f"Token: {token.text}, Lemma: {token.lemma_}, POS: {token.pos_}, Tag: {token.tag_}, Dep: {token.dep_}, Shape: {token.shape_}, is_alpha: {token.is_alpha}, is_stop: {token.is_stop}")
+                tuple_dict["One-Way Info"] = extractFlightInfo(doc)
+            except:
+                print()
             
             
             '''Round Trip'''
@@ -454,7 +467,7 @@ def extractFlightInfo(nlp_doc):
         print(span.text)
         extracted.append(span.text)
     clear_matcher(matcher)
-    return extracted
+    
     return clean_data(extracted) 
     # Get round trip or one way from user input
 
@@ -784,6 +797,110 @@ def pipeline(cleaned_data, user_data):
     #['348', '1', 'Frontier', 'Baltimore/Washington International Thurgood Marshall Airport', '6:44 PM', 'Sunday, January 5', 'Denver International Airport', '7:04 AM', 'Monday, January 6', '14 hr 20 min', '1', '8 hr 22 min', 'Hartsfield-Jackson Atlanta International Airport', 'Atlanta', '0', '0', 2, 1, 0, 0, 'Economy', True, 'Airbus A320neo']
     # Initialize PostgreSQL DB
     connection, cursor = intializeDatabase()
+    
+    ttl_passengers = 0
+    for num in user_data[2:5]:
+        ttl_passengers += num
+    for scraped_info in cleaned_data:
+        one_way_info = scraped_info["One-Way Info"]
+        print(f"Inserting airline \"{one_way_info[4]}\" into database...\n")
+        cursor.execute(
+            "INSERT INTO airlines (airline_name) VALUES (%s)", 
+            (one_way_info[4],))
+        connection.commit()
+        cursor.execute( 
+            "SELECT airline_id FROM airlines WHERE airline_name = %s",
+            (one_way_info[4],))
+        airline_id = cursor.fetchone()[0]
+        
+        ''''''
+        departure_airplane = scraped_info["Departure Airplane Type"]
+        print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
+        cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s)",
+                    (departure_airplane, ))
+        connection.commit()
+        cursor.execute(
+            "SELECT airplane_id FROM airplanes WHERE airplane_type = %s",
+            (departure_airplane,)
+            )
+        departure_airplane_id = cursor.fetchone()[0]
+        ''''''
+        arrival_airplane = scraped_info["Arrival Airplane Type"]
+        print(f"Inserting departure airplane \"{arrival_airplane}\" into database...")
+        cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s)",
+                    (arrival_airplane))
+        connection.commit()
+        cursor.execute(
+            "SELECT airplane_id FROM airplanes WHERE airplane_type = %s",
+            (arrival_airplane,)
+            )
+        arrival_airplane_id = cursor.fetchone()[0]
+        ''''''
+        print(f"Inserting Airports: \"{one_way_info[5]}\" and \"{user_data[0]}\" into database...")
+        cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
+                    (one_way_info[5], user_data[0], )) # Origin airport as well as city
+        connection.commit()
+        cursor.execute(
+            "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
+            (one_way_info[5], user_data[0], )
+            )
+        departure_airport_id = cursor.fetchone()[0]
+        
+        cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
+                        (one_way_info[8], user_data[1], )) # destination airport as well as city
+        connection.commit()
+        cursor.execute(
+            "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
+            (one_way_info[8], user_data[1], )
+            )
+        arrival_airport_id = cursor.fetchone()[0]
+        
+        roundtrip_id = None
+        if user_data[-1] == True: # if roundtrip
+            rnd_trip_passengers = 0
+            print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
+            cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s)",
+                    (cleaned_data[-1], ttl_passengers, ) )
+            connection.commit()
+            cursor.execute(
+            "SELECT roundtrip_id FROM roundtrips WHERE total_price = %s AND num_passengers = %s",
+            (cleaned_data[-1], ttl_passengers, )
+            )
+            roundtrip_id = cursor.fetchone()[0]
+            
+        print(f"Inserting data into database...")
+        cursor.execute(
+            "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, search_date, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (one_way_info[0],  roundtrip_id, "Outgoing", one_way_info[1], airline_id, departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[11], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], user_data[7], departure_airplane_id, arrival_airplane_id,)
+                )  
+        connection.commit()
+        cursor.execute(
+            "SELECT flight_id FROM flight_features WHERE flight_price = %s AND roundtrip_id IS NOT DISTINCT FROM %s AND flight_direction = %s AND num_stops = %s AND airline_id = %s AND departure_airport_id = %s AND departure_time = %s AND departure_date = %s AND arrival_airport_id = %s AND arrival_time = %s AND arrival_date = %s AND travel_duration = %s AND num_layovers = %s AND num_carryon = %s AND num_checked = %s AND num_adults = %s AND num_children = %s AND num_infants_in_seat = %s AND num_infants_on_lap = %s AND seating_class = %s AND round_trip = %s AND departure_airplane_type_id = %s AND arrival_airplane_type_id = %s",
+            (one_way_info[0],  roundtrip_id, "Outgoing", one_way_info[1], airline_id, departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[11], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], user_data[7], departure_airplane_id, arrival_airplane_id, )
+            )
+        flight_id = cursor.fetchone()[0]
+        ''''''
+        cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
+                        (one_way_info[8], user_data[1], ) ) # any layovers
+        connection.commit()
+        cursor.execute(
+            "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
+            (one_way_info[8], user_data[1], )
+            )
+        layover_airport_id = cursor.fetchone()[0]
+        
+        if len(one_way_info) > 12:
+            print(f"Inserting \"{one_way_info[11]}\" into database...\n")
+            cursor.execute(
+                "INSERT INTO layovers (flight_id, layover_airport_id, layover_duration) VALUES (%s, %s, %s)",
+                (flight_id, layover_airport_id, one_way_info[11], ) 
+                )
+        connection.commit()
+    closeConnection(connection, cursor)
+    print("\n\tFinished.")
+    exit()
+        
+    
     '''
     insertIntoAirlines()
     insertIntoAirplanes()
@@ -792,51 +909,50 @@ def pipeline(cleaned_data, user_data):
     insertIntoflight_features()
     inserIntoLayovers()
     '''
-    ttl_passengers = 0
-    for num in cleaned_data[16:19]:
-        ttl_passengers += num
+    
         
-    print(f"Inserting \"{cleaned_data[2]}\" into database...\n")
+    print(f"Inserting airline \"{scraped_info[4]}\" into database...\n")
     cursor.execute(
         "INSERT INTO airlines (airline_name) VALUES (%s)", 
-        (cleaned_data[2],))
+        (scraped_info[4],))
     connection.commit()
     cursor.execute( 
         "SELECT airline_id FROM airlines WHERE airline_name = %s",
-        (cleaned_data[2],))
+        (cleaned_data[4],))
     airline_id = cursor.fetchone()[0]
     ''''''''
-    print(f"Inserting \"{cleaned_data[-1]}\" into database...")
+    departure_airplane = cleaned_data["Departure Airplane Type"]
+    print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
     cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s)",
-                   (cleaned_data[-1], ))
+                   (cleaned_data["Departure Airplane Type"]))
     connection.commit()
     cursor.execute(
         "SELECT airplane_id FROM airplanes WHERE airplane_type = %s",
-        (cleaned_data[-1],)
+        (cleaned_data["Departure Airplane Type"],)
         )
     airplane_id = cursor.fetchone()[0]
     ''''''
-    print(f"Inserting \"{cleaned_data[3]}\" into database...")
+    print(f"Inserting Airports: \"{scraped_info[5]}\" and \"{scraped_info[8]}\" into database...")
     cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
-                (cleaned_data[3], user_data[0], )) # Origin airport as well as city
+                (scraped_info[5], user_data[0], )) # Origin airport as well as city
     connection.commit()
     cursor.execute(
         "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
-        (cleaned_data[3], user_data[0], )
+        (scraped_info[5], user_data[0], )
         )
     departure_airport_id = cursor.fetchone()[0]
     
     cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
-                    (cleaned_data[6], user_data[1], )) # destination airport as well as city
+                    (scraped_info[8], user_data[1], )) # destination airport as well as city
     connection.commit()
     cursor.execute(
         "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
-        (cleaned_data[6], user_data[1], )
+        (scraped_info[8], user_data[1], )
         )
     arrival_airport_id = cursor.fetchone()[0]
     
     roundtrip_id = None
-    if cleaned_data[-2] == True: # if roundtrip
+    if user_data[-1] == True: # if roundtrip
         rnd_trip_passengers = 0
         print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
         cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s)",
@@ -850,8 +966,8 @@ def pipeline(cleaned_data, user_data):
         
     print(f"Inserting data into database...")
     cursor.execute(
-        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (cleaned_data[0],  roundtrip_id, "Outgoing", cleaned_data[1], airline_id, departure_airport_id, cleaned_data[4],  cleaned_data[5], arrival_airport_id, cleaned_data[7], cleaned_data[8], cleaned_data[9], cleaned_data[10], cleaned_data[14], cleaned_data[15], cleaned_data[16], cleaned_data[17], cleaned_data[18], cleaned_data[19], cleaned_data[20], cleaned_data[21], airplane_id, )
+        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, search_date, airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (scraped_info[0],  roundtrip_id, "Outgoing", scraped_info[1], airline_id, departure_airport_id, scraped_info[6],  scraped_info[7], arrival_airport_id, scraped_info[9], scraped_info[10], scraped_info[11], scraped_info[1], scraped_info[2], scraped_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], user_data[7], airplane_id, )
             )  
     connection.commit()
     cursor.execute(
@@ -861,11 +977,11 @@ def pipeline(cleaned_data, user_data):
     flight_id = cursor.fetchone()[0]
     ''''''
     cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s)",
-                    (cleaned_data[12], cleaned_data[12+1], ) ) # any layovers
+                    (scraped_info[8], user_data[1], ) ) # any layovers
     connection.commit()
     cursor.execute(
         "SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s",
-        (cleaned_data[12], cleaned_data[12+1], )
+        (scraped_info[8], user_data[1], )
         )
     layover_airport_id = cursor.fetchone()[0]
     
@@ -881,43 +997,18 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
+    current_date = datetime.now().date()
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
     accessOriginDestination(wait, driver, "BWI ", "Denver ")
     access_Flights(driver)
-    all_results = driver.find_elements(By.XPATH, "//ul[@class='Rk10dc']/li")
-    flight_info = []
-    # Add this back to method up top
-    for result in all_results[:10]:
-        dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
-        dropdown_button.click()
-        driver.execute_script("arguments[0].scrollIntoView(true);", dropdown_button)
-        driver.execute_script("window.scrollBy(0,-850);")
-        
-        time.sleep(2)
-        # Annoying ass error here
-        super_div_element = div_element = result.find_element(By.CSS_SELECTOR, 'div.m9ravf').find_element(By.CSS_SELECTOR, 'div.xOMPfb.MNvMJb')
-        
-        div_element = super_div_element.find_element(By.CSS_SELECTOR, "div.c257Jb.QwxBBf.eWArhb") 
-        span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
-        departure_airplane_type = span_elements[3].text
-        print(departure_airplane_type)
-
-        div_element = super_div_element.find_element(By.CSS_SELECTOR, "div.MX5RWe.sSHqwe.y52p7d")
-        span_elements = div_element.find_elements(By.CSS_SELECTOR,"span.Xsgmwe")
-        arrival_airplane_type = span_elements[3].text
-        print(arrival_airplane_type)
-        #driver.execute_script("arguments[0].scrollIntoView(true);", select_flight)
-        dropdown_button.click()
-       
+    extraced_flight_info = retrieveFlightDetails(driver, wait, False)
     
-    URL = "https://www.google.com/travel/explore"
-    driver, wait = intialize(URL)
-    accessOriginDestination(wait, driver, "BWI ", "Denver ")
-    access_Flights(driver)
-    extraced_flight_info = retrieveFlightDetails(driver, False)
-    print(extraced_flight_info)
+    user_data = ["BWI", "Denver", 1, 0, 0, 0, "Economy", current_date, False]
+    pipeline(extraced_flight_info, user_data)
     exit()
+   
+    
     URL = "https://www.google.com/travel/explore"
     driver, wait = intialize(URL)
     
@@ -932,10 +1023,12 @@ def driver():
         accessFlexibleDates(wait, driver, date1, date2)
     else:
         accessSpecificDates(wait, driver, date1, date2)
+    current_date = datetime.now()
     seating_class = getUserSeatingClass()
     accessSeatingClass(wait, driver, seating_class)
     access_Flights(driver)
-    retrieveFlightDetails(driver, round_trip)
+    extraced_flight_info = retrieveFlightDetails(driver, wait, round_trip)
+    user_data = [origin, dest, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, current_date, round_trip]
     
     
     
