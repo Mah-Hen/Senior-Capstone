@@ -31,10 +31,10 @@ CREATE TABLE flight_features(
 	search_date DATE, 
 	departure_airport_id INT REFERENCES airports(airport_id), 
 	departure_time TIME, 
-	departure_date DATE, 
+	departure_date VARCHAR(50), 
 	arrival_airport_id INT REFERENCES airports(airport_id), 
 	arrival_time TIME, 
-	arrival_date DATE, 
+	arrival_date VARCHAR(50), 
 	travel_duration INTERVAL, 
 	num_layovers INT, 
 	--layover_duration VARCHAR(255), 
@@ -59,7 +59,8 @@ CREATE TABLE layovers(
 	layover_duration INTERVAL
 );
 
---DROP TABLE flight_features;
+--DROP DATABASE Flights;
+--DROP TABLE flight_features CASCADE;
 SELECT * FROM flight_features;
 
 /* Data from scraping the flight status is */
