@@ -699,14 +699,15 @@ def clean_data(data):
         cleaned_data.append("0")
         print(data[1])
         # Extract the number of carry-on bags
-        num_carryon = re.search(r"\d+", data[6])
-        cleaned_data.append(num_carryon.group())
-        print(num_carryon.group())
-        
-        # Extract the number of checked bags
-        num_checked = re.search(r"\d+", data[7])
-        cleaned_data.append(num_checked.group())
-        print(num_checked.group())
+        if len(data) > 6:
+            num_carryon = re.search(r"\d+", data[6])
+            cleaned_data.append(num_carryon.group())
+            print(num_carryon.group())
+            
+            # Extract the number of checked bags
+            num_checked = re.search(r"\d+", data[7])
+            cleaned_data.append(num_checked.group())
+            print(num_checked.group())
         # Extract the airline
         airline = re.search(r'\w+\Z', data[3])
         cleaned_data.append(airline.group())
@@ -850,118 +851,306 @@ def pipeline(cleaned_data, user_data):
     for scraped_info in cleaned_data:
         one_way_info = scraped_info["One-Way Info"]
         
-        if len(one_way_info)>12:    
-            '''Airline'''
-            print(f"Inserting airline \"{one_way_info[2]}\" into database...")
-            cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[2],))
-            result = cursor.fetchone()
+        if len(one_way_info) == 10:
+                '''Airline'''
+                print(f"Inserting airline \"{one_way_info[2]}\" into database...")
+                cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[2],))
+                result = cursor.fetchone()
+                
+                if result:
+                    airline_id = result[0]
+                else:
+                    cursor.execute(
+                        "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
+                        (one_way_info[2],))
+                    connection.commit()
+                    airline_id = cursor.fetchone()[0]
+                
+                '''Departure\Arrival Airplane'''
+                departure_airplane = scraped_info["Departure Airplane Type"]
+                print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
+                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
+                result = cursor.fetchone()
+                
+                if result:
+                    departure_airplane_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
+                                (departure_airplane, ))
+                    connection.commit()
+                    departure_airplane_id = cursor.fetchone()[0]
+                    
+                '''Arrival Airplane Type'''
+                arrival_airplane = scraped_info["Arrival Airplane Type"]
+                print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
+                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
+                result = cursor.fetchone()
+                
+                if result:
+                    arrival_airplane_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
+                                (arrival_airplane, ))
+                    connection.commit()
+                    arrival_airplane_id = cursor.fetchone()[0]
+                
+                '''Departure\Arrival Airport'''
+                print(f"Inserting Departure Airport: \"{one_way_info[3]}\" and \"{user_data[0]}\" into database...")
+                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[3],user_data[0], ))
+                result = cursor.fetchone()
+                
+                if result:
+                    departure_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                (one_way_info[3], user_data[0], ))
+                
+                
+                print(f"Inserting Arrival Airport: \"{one_way_info[6]}\" and \"{user_data[1]}\" into database...")
+                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[6], user_data[1], ))
+                result = cursor.fetchone()
+                if result:
+                    arrival_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                    (one_way_info[6], user_data[1], ))   
+                
+                roundtrip_id = None
+                if user_data[-1] == True: # if roundtrip
+                    flight_direction = "Returning"
+                    rnd_trip_passengers = 0
+                    print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
+                    cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
+                            (cleaned_data[-1], ttl_passengers, ) )
+                    connection.commit()
+                    roundtrip_id = cursor.fetchone()[0]
+                    
+                print(f"Inserting flight features into database...")
+                if roundtrip_id:
+                    cursor.execute(
+                        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
+                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[9], one_way_info[1], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            )  
+                    connection.commit()
+                else:
+                    cursor.execute(
+                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
+                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[9], one_way_info[1], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            )
+        elif len(one_way_info)>=12:  
+            if one_way_info[1] == 0: # No stops
+                '''Airline'''
+                print(f"Inserting airline \"{one_way_info[4]}\" into database...")
+                cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[4],))
+                result = cursor.fetchone()
+                
+                if result:
+                    airline_id = result[0]
+                else:
+                    cursor.execute(
+                        "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
+                        (one_way_info[4],))
+                    connection.commit()
+                    airline_id = cursor.fetchone()[0]
+                
+                
+                '''Departure\Arrival Airplane'''
+                departure_airplane = scraped_info["Departure Airplane Type"]
+                print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
+                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
+                result = cursor.fetchone()
+                
+                if result:
+                    departure_airplane_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
+                                (departure_airplane, ))
+                    connection.commit()
+                    departure_airplane_id = cursor.fetchone()[0]
+                ''''''
+                arrival_airplane = scraped_info["Arrival Airplane Type"]
+                print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
+                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
+                result = cursor.fetchone()
+                
+                if result:
+                    arrival_airplane_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
+                                (departure_airplane, ))
+                    connection.commit()
+                    arrival_airplane_id = cursor.fetchone()[0]
+                
+                '''Departure\Arrival Airport'''
+                print(f"Inserting Departure Airport: \"{one_way_info[5]}\" and \"{user_data[0]}\" into database...")
+                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[5],user_data[0], ))
+                result = cursor.fetchone()
+                
+                if result:
+                    departure_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                (one_way_info[5], user_data[0], )) # Origin airport as well as city
+                    connection.commit()
+                    departure_airport_id = cursor.fetchone()[0]
+                
+                print(f"Inserting Arrival Airport: \"{one_way_info[8]}\" and \"{user_data[1]}\" into database...")
+                cursor.execute("SELEct airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[8], user_data[1], ))
+                result = cursor.fetchone()
+                
+                if result:
+                    arrival_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                    (one_way_info[8], user_data[1], )) # destination airport as well as city
+                    connection.commit()
+                    arrival_airport_id = cursor.fetchone()[0]
+                
+                roundtrip_id = None
+                if user_data[-1] == True: # if roundtrip
+                    flight_direction = "Returning"
+                    rnd_trip_passengers = 0
+                    print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
+                    cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
+                            (cleaned_data[-1], ttl_passengers, ) )
+                    connection.commit()
+                    roundtrip_id = cursor.fetchone()[0]
+                    '''Work in Progress'''
+                    # Some code here for round trip automation
+                    #
+                    #
+                
+                
+                print(f"Inserting flight features into database...")
+                if roundtrip_id:
+                    cursor.execute(
+                        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
+                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[-1], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            )  
+                    connection.commit()
+                else:
+                    cursor.execute(
+                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
+                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[-1], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            )  
+                    connection.commit()
+                flight_id = cursor.fetchone()[0]
+                
+                
+                
+            else: 
+                
+                '''Airline'''
+                print(f"Inserting airline \"{one_way_info[2]}\" into database...")
+                cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[2],))
+                result = cursor.fetchone()
+                
+                if result:
+                    airline_id = result[0]
+                else:
+                    cursor.execute(
+                        "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
+                        (one_way_info[2],))
+                    connection.commit()
+                    airline_id = cursor.fetchone()[0]
+                
+                
+                '''Departure\Arrival Airplane'''
+                departure_airplane = scraped_info["Departure Airplane Type"]
+                print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
+                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
+                result = cursor.fetchone()
+                
+                if result:
+                    departure_airplane_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
+                                (departure_airplane, ))
+                    connection.commit()
+                    departure_airplane_id = cursor.fetchone()[0]
+                ''''''
+                arrival_airplane = scraped_info["Arrival Airplane Type"]
+                print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
+                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
+                result = cursor.fetchone()
+                
+                if result:
+                    arrival_airplane_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
+                                (departure_airplane, ))
+                    connection.commit()
+                    arrival_airplane_id = cursor.fetchone()[0]
+                
+                '''Departure\Arrival Airport'''
+                print(f"Inserting Departure Airport: \"{one_way_info[3]}\" and \"{user_data[0]}\" into database...")
+                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[3],user_data[0], ))
+                result = cursor.fetchone()
+                
+                if result:
+                    departure_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                (one_way_info[3], user_data[0], )) # Origin airport as well as city
+                    connection.commit()
+                    departure_airport_id = cursor.fetchone()[0]
+                
+                print(f"Inserting Arrival Airport: \"{one_way_info[6]}\" and \"{user_data[1]}\" into database...")
+                cursor.execute("SELEct airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[6], user_data[1], ))
+                result = cursor.fetchone()
+                
+                if result:
+                    arrival_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                    (one_way_info[6], user_data[1], )) # destination airport as well as city
+                    connection.commit()
+                    arrival_airport_id = cursor.fetchone()[0]
+                
+                roundtrip_id = None
+                if user_data[-1] == True: # if roundtrip
+                    flight_direction = "Returning"
+                    rnd_trip_passengers = 0
+                    print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
+                    cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
+                            (cleaned_data[-1], ttl_passengers, ) )
+                    connection.commit()
+                    roundtrip_id = cursor.fetchone()[0]
+                
+                
+                print(f"Inserting flight features into database...")
+                if roundtrip_id:
+                    cursor.execute(
+                        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
+                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[-3], one_way_info[-2], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            )  
+                    connection.commit()
+                else:
+                    cursor.execute(
+                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
+                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[-3], one_way_info[-2], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            )  
+                    connection.commit()
+                flight_id = cursor.fetchone()[0]
+                
+                '''Layover Airport'''
+                print(f"Inserting \"{one_way_info[3]}\" into database...\n")
+                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s", (one_way_info[3], one_way_info[4],))
+                result = cursor.fetchone()
+                
+                if result:
+                    layover_airport_id = result[0]
+                else:
+                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
+                                (one_way_info[3], one_way_info[4], ) )
+                    connection.commit()
+                    layover_airport_id = cursor.fetchone()[0]
             
-            if result:
-                airline_id = result[0]
-            else:
                 cursor.execute(
-                    "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
-                    (one_way_info[2],))
+                    "INSERT INTO layovers (flight_id, layover_airport_id, layover_duration) VALUES (%s, %s, %s)",
+                    (flight_id, layover_airport_id, one_way_info[9], ) 
+                    )
                 connection.commit()
-                airline_id = cursor.fetchone()[0]
-            
-            
-            '''Departure\Arrival Airplane'''
-            departure_airplane = scraped_info["Departure Airplane Type"]
-            print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
-            cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
-            result = cursor.fetchone()
-            
-            if result:
-                departure_airplane_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                            (departure_airplane, ))
-                connection.commit()
-                departure_airplane_id = cursor.fetchone()[0]
-            ''''''
-            arrival_airplane = scraped_info["Arrival Airplane Type"]
-            print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
-            cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
-            result = cursor.fetchone()
-            
-            if result:
-                arrival_airplane_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                            (departure_airplane, ))
-                connection.commit()
-                arrival_airplane_id = cursor.fetchone()[0]
-            
-            '''Departure\Arrival Airport'''
-            print(f"Inserting Departure Airport: \"{one_way_info[3]}\" and \"{user_data[0]}\" into database...")
-            cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[3],user_data[0], ))
-            result = cursor.fetchone()
-            
-            if result:
-                departure_airport_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                            (one_way_info[3], user_data[0], )) # Origin airport as well as city
-                connection.commit()
-                departure_airport_id = cursor.fetchone()[0]
-            
-            print(f"Inserting Arrival Airport: \"{one_way_info[6]}\" and \"{user_data[1]}\" into database...")
-            cursor.execute("SELEct airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[6], user_data[1], ))
-            result = cursor.fetchone()
-            
-            if result:
-                arrival_airport_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                (one_way_info[6], user_data[1], )) # destination airport as well as city
-                connection.commit()
-                arrival_airport_id = cursor.fetchone()[0]
-            
-            roundtrip_id = None
-            if user_data[-1] == True: # if roundtrip
-                flight_direction = "Returning"
-                rnd_trip_passengers = 0
-                print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
-                cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
-                        (cleaned_data[-1], ttl_passengers, ) )
-                connection.commit()
-                roundtrip_id = cursor.fetchone()[0]
-            
-            
-            print(f"Inserting flight features into database...")
-            if roundtrip_id:
-                cursor.execute(
-                    "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                        (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[-3], one_way_info[-2], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                        )  
-                connection.commit()
-            else:
-                cursor.execute(
-                    "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                        (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[-3], one_way_info[-2], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                        )  
-                connection.commit()
-            flight_id = cursor.fetchone()[0]
-            
-            '''Layover Airport'''
-            print(f"Inserting \"{one_way_info[3]}\" into database...\n")
-            cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s", (one_way_info[3], one_way_info[4],))
-            result = cursor.fetchone()
-            
-            if result:
-                layover_airport_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                            (one_way_info[3], one_way_info[4], ) )
-                connection.commit()
-                layover_airport_id = cursor.fetchone()[0]
-        
-            cursor.execute(
-                "INSERT INTO layovers (flight_id, layover_airport_id, layover_duration) VALUES (%s, %s, %s)",
-                (flight_id, layover_airport_id, one_way_info[9], ) 
-                )
-            connection.commit()
             
         else:   
             '''Airline'''
@@ -1057,11 +1246,12 @@ def pipeline(cleaned_data, user_data):
                             )  
                 except IndexError: 
                     print("Error")
+                    exit()
                 connection.commit()
                 
             flight_id = cursor.fetchone()[0]
-            
-            connection.commit()
+                
+        connection.commit()
     print("\n\tFinished.")
     closeConnection(connection, cursor)
       
