@@ -383,13 +383,16 @@ def extractFlightInfo(nlp_doc):
     ]
     '''May need to change later'''
     num_layover_pattern = [
-        [{"TEXT": "Layover"}, {"TEXT": "("}, {"POS": "NUM"}, {"TEXT": "of"}, {"POS": "NUM"}, {"TEXT": ")"}]
+        [{"TEXT": "of"}, {"POS": "NUM"}, {"TEXT": ")"}]
     ]
     
+    '''
     layover_duration_pattern = [
         [{"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM"}, {"LOWER": "min"}, {"LOWER": "layover"}], 
-        [{"POS": "NUM"}, {"LOWER": "min"}, {"LOWER", "layover"}]
+        [{"POS": "NUM"}, {"LOWER": "min"}, {"LOWER", "layover"}], 
+        [{"POS":"NUM"}, {"LOWER": "hr"}, {"LOWER": "overnight", "POS":"?"}, {"LOWER": "layover"}]
     ]
+    '''
     
     departure_time_pattern = [
         [
@@ -415,7 +418,7 @@ def extractFlightInfo(nlp_doc):
     ]
     
     layover_duration_pattern_3 = [
-        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"LOWER":"layover"}]
+        [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"lower":"overnight", "OP": "?"}, {"LOWER":"layover"}]
     ]
     
     airline_pattern = [
@@ -423,11 +426,14 @@ def extractFlightInfo(nlp_doc):
     ]
     connecting_airport_pattern = [
         [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM", "CCONJ"]}, "OP":"?"}, 
-         {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN"}, {"POS":"PROPN", "OP":"?"}]
+         {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"+"}]
         ]
     connecting_airport_pattern_2 = [
         [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM", "CCONJ"]}, "OP":"?"}, 
-        {"POS":"PROPN", "OP":"+"}, {"TEXT": "Field"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"*"}, {"POS":"PROPN", "OP":"?"}]
+        {"POS":"PROPN", "OP":"+"}, {"TEXT": "Field"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"*"}, {"POS":"PROPN", "OP":"+"}]
+        ]
+    connecting_airport_pattern_3 = [
+        [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"}, {"LOWER":"in"}, {"POS":"PROPN", "OP":"+"}],
         ]
     num_of_carryon_pattern = [
         [{"POS": "PUNCT"}, {"LOWER": "carry"}, {"POS":"PUNCT"}, {"LOWER":"on"}]
@@ -445,28 +451,12 @@ def extractFlightInfo(nlp_doc):
     
     span = nlp_doc[matches[-1][1]:matches[-1][2]]
     latest = span.text
-    
     extracted.append(latest)
+    
     matcher.remove("FLIGHT_DURATION")
-    matcher.add("CONNECTING_AIRPORT", connecting_airport_pattern)
-    matcher.add("CONNECTING_AIRPORT_2", connecting_airport_pattern_2)
-    latest = None
-    matches = matcher(nlp_doc)
-    if matches:
-        span = nlp_doc[matches[-1][1]:matches[-1][2]]
-        latest = span.text
-    
-        extracted.append(latest)
-    
-    matcher.remove("CONNECTING_AIRPORT")
-    matcher.remove("CONNECTING_AIRPORT_2")
     matcher.add("FLIGHT_PRICE", price_pattern) # correct
     matcher.add("NUM_STOPS", num_stops_pattern) # correct
     matcher.add("NO_STOPS", no_stops_pattern) # correct
-    matcher.add("NUM_LAYOVERS", num_layover_pattern) # correct
-    matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
-    matcher.add("LAYOVER_DURATION_2", layover_duration_pattern_2) # correct
-    matcher.add("LAYOVER_DURATION_3", layover_duration_pattern_3) # correct
     matcher.add("DEPARTURE_TIME", departure_time_pattern)
     matcher.add("ARRIVAL_TIME", arrival_time_pattern)
 
@@ -480,7 +470,19 @@ def extractFlightInfo(nlp_doc):
         print(span.text)
         extracted.append(span.text)
     clear_matcher(matcher)
-    
+    matcher.add("CONNECTING_AIRPORT", connecting_airport_pattern, greedy='LONGEST')
+    matcher.add("CONNECTING_AIRPORT_2", connecting_airport_pattern_2, greedy='LONGEST')
+    #matcher.add("CONNECTING_AIRPORT_3", connecting_airport_pattern_3, greedy='LONGEST')
+    matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
+    matcher.add("LAYOVER_DURATION_2", layover_duration_pattern_2) # correct
+    matcher.add("LAYOVER_DURATION_3", layover_duration_pattern_3) # correct
+    latest = None
+    matches = matcher(nlp_doc)
+    for match_id, start, end in matches:
+        span = nlp_doc[start:end]
+        print(span.text)
+        extracted.append(span.text)
+    clear_matcher(matcher)
     return clean_data(extracted) 
     # Get round trip or one way from user input
 
@@ -736,11 +738,11 @@ def clean_data(data):
         print(arrival_date.group(1))
             
     else:
-        flight_price = re.search(r'\d+', data[2])
+        flight_price = re.search(r'\d+', data[1])
         cleaned_data.append(flight_price.group())
         print(flight_price.group())
         # data = [price, # stops, airline, departure info, arrival info, total duration, # layovers, layover duration, layover info, num carryon, num checked]
-        num_stops = re.search(r'\d+', data[3])
+        num_stops = re.search(r'\d+', data[2])
         cleaned_data.append(num_stops.group())
         print(num_stops.group())
         num_stops = int(num_stops.group()) # Use this to split the if/else logic regarding the number of layovers
@@ -750,69 +752,95 @@ def clean_data(data):
         #cleaned_data.append(num_layovers.group())
         #print(num_layovers.group())
         # Extract the airline
-        airline = re.search(r'\w+\Z', data[4])
+        airline = re.search(r'\w+\Z', data[3])
         cleaned_data.append(airline.group())
         print(airline.group())
         
         # Extract the departure airport, time, and date
-        departure_airport = re.search(r"Leaves (.+? Airport)", data[5])
+        departure_airport = re.search(r"Leaves (.+? Airport)", data[4])
         cleaned_data.append(departure_airport.group(1))
         print(departure_airport.group(1))
-        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[5])
+        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
         cleaned_data.append(departure_time.group(1))
         print(departure_time.group(1))
-        departure_date = re.search(r"on (\w+, \w+ \d+)", data[5])
+        departure_date = re.search(r"on (\w+, \w+ \d+)", data[4])
         cleaned_data.append(departure_date.group(1))
         print(departure_date.group(1))
         
 
         # Extract the arrival airport, time, and date
-        arrival_airport = re.search(r"arrives at (.+? Airport)", data[6])
+        arrival_airport = re.search(r"arrives at (.+? Airport)", data[5])
         cleaned_data.append(arrival_airport.group(1))
         print(arrival_airport.group(1))
-        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[6])
+        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[5])
         cleaned_data.append(arrival_time.group(1))
         print(arrival_time.group(1))
-        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[6])
+        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[5])
         cleaned_data.append(arrival_date.group(1))
         print(arrival_date.group(1))
+        # Extract the number of carry-on bags
+        num_carryon = re.search(r"\d+", data[6])
+        cleaned_data.append(num_carryon.group())
+        print(num_carryon.group())
         
+        # Extract the number of checked bags
+        num_checked = re.search(r"\d+", data[7])
+        cleaned_data.append(num_checked.group())
+        print(num_checked.group())
+        
+        layover_info = {}
         if num_stops == 1:
             # Extract the layover duration
-            layover_duration = re.search(r"(\d+ hr \d+ min)", data[8]) # 6
+            layover_duration = re.search(r"(\d+ hr \d+ min)", data[-2]) # 6
             if layover_duration is None:
-                layover_duration = re.search(r"(\d+ min)", data[8])
+                layover_duration = re.search(r"(\d+ min)", data[-2])
                 if layover_duration is None:
-                    layover_duration = re.search(r"(\d+ hr)", data[8])
+                    layover_duration = re.search(r"(\d+ hr)", data[-2])
             cleaned_data.append(layover_duration.group(1))
             print(layover_duration.group(1))
 
             # Extract layover airport
-            layover_airport = re.search(r"at (.+? Airport)", data[1])
+            layover_airport = re.search(r"at (.+? Airport)", data[-1])
             if layover_airport is None:
-                layover_airport = re.search(r"at (.+? Field)", data[1])
+                layover_airport = re.search(r"at (.+? Field)", data[-1])
             cleaned_data.append(layover_airport.group(1))
             print(layover_airport.group(1))
 
             # Extract layover city
-            layover_city = re.search(r"in (.+)", data[1])
+            layover_city = re.search(r"in (.+)", data[-1])
             cleaned_data.append(layover_city.group(1))
             print(layover_city.group(1))
             
-            # Extract the number of carry-on bags
-            num_carryon = re.search(r"\d+", data[-2])
-            cleaned_data.append(num_carryon.group())
-            print(num_carryon.group())
-            
-            # Extract the number of checked bags
-            num_checked = re.search(r"\d+", data[-1])
-            cleaned_data.append(num_checked.group())
-            print(num_checked.group())
             
         else:
-            layover_info = data[7:-2]
-            for info in layover_info:
-                pass
+            cnt = 1
+            for i in range(8, 8+len(data[8:])-1, 2):
+                layovers = []
+                # Create a list of layover info throw it into a dictionary as the value with the key being the layover number
+                # Extract the layover duration
+                layover_duration = re.search(r"(\d+ hr \d+ min)", data[i]) # 6
+                if layover_duration is None:
+                    layover_duration = re.search(r"(\d+ min)", data[i])
+                    if layover_duration is None:
+                        layover_duration = re.search(r"(\d+ hr)", data[i])
+                layovers.append(layover_duration.group(1))
+                print(layover_duration.group(1))
+
+                # Extract layover airport
+                layover_airport = re.search(r"at (.+? Airport)", data[i+1])
+                if layover_airport is None:
+                    layover_airport = re.search(r"at (.+? Field)", data[i+1])
+                layovers.append(layover_airport.group(1))
+                print(layover_airport.group(1))
+
+                # Extract layover city
+                layover_city = re.search(r"in (.+)", data[i+1])
+                layovers.append(layover_city.group(1))
+                print(layover_city.group(1))
+                layover_info[cnt] = layovers
+                cnt += 1
+                cleaned_data.append(layover_info)
+                
     
     # Extract the total duration of the flight
     total_duration = re.search(r"(\d+ hr \d+ min)", data[0])
@@ -938,7 +966,7 @@ def pipeline(cleaned_data, user_data):
                             (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[9], one_way_info[1], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
                             )
         elif len(one_way_info)>=12:  
-            if one_way_info[1] == 0: # No stops
+            if int(one_way_info[1]) == 0: # No stops
                 '''Airline'''
                 print(f"Inserting airline \"{one_way_info[4]}\" into database...")
                 cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[4],))
@@ -1122,13 +1150,13 @@ def pipeline(cleaned_data, user_data):
                 if roundtrip_id:
                     cursor.execute(
                         "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[-3], one_way_info[-2], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[9], one_way_info[10], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
                             )  
                     connection.commit()
                 else:
                     cursor.execute(
                         "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[-3], one_way_info[-2], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
+                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[9], one_way_info[10], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
                             )  
                     connection.commit()
                 flight_id = cursor.fetchone()[0]
@@ -1266,6 +1294,11 @@ def pipeline(cleaned_data, user_data):
 
     
 def driver():
+    #string = "From 404 US dollars round trip total. 1 stop flight with Southwest. Leaves Baltimore/Washington International Thurgood Marshall Airport at 8:00 AM on Sunday, April 6 and arrives at Phoenix Sky Harbor International Airport at 3:55 PM on Sunday, April 6. Total duration 10 hr 55 min. Layover (1 of 1) is a 5 hr layover at St. Louis Lambert International Airport in St. Louis. 1 carry-on bag included. 2 checked bags included.  Select flight"
+    #print(string)
+    #extractFlightInfo(nlp(string))
+    #exit()
+    
     state_caps = ["Montgomery", "Phoenix", "Little Rock", "Sacramento", "Denver", "Hartford", "Dover", "Tallahassee", "Atlanta", "Honolulu", "Boise", "Springfield", "Indianapolis", "Des Moines", "Topeka", "Frankfort", "Baton Rougue", "Augusta", "Boston", "Lansing", "Saint Paul", "Jackson", "Jefferson City", "Helena", "Lincoln", "Carson City", "Concord", "Trenton", "Santa Fe", "Albany", "Raleigh", "Bismarck", "Columbus", "Oklahoma City", "Salem", "Harrisburg", "Providence", "Columbia", "Pierre", "Nashville", "Austin", "Salt Lake City", "Montpelier", "Richmond", "Olympia", "Charleston", "Madison", "Cheyenne"]
     for capitals in state_caps:
         current_date = datetime.now().date()
