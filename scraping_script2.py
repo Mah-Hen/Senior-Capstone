@@ -9,6 +9,7 @@ from spacy.matcher import Matcher
 import re 
 import psycopg2
 from datetime import datetime
+import os
 
 
 
@@ -32,17 +33,18 @@ def intialize(URL):
     return driver, wait
 
 def intializeDatabase():
-    file = open("./psql_credentials.txt", "r")
-    creds = file.readlines()
-    creds = [cred.strip("\n") for cred in creds]
-    file.close()
+    user = os.environ.get('USER')
+    password = os.environ.get('PASS')
+    host = os.environ.get('HOST')
+    db = os.environ.get('DB')
+    port = "5432"
     '''Initialize the database'''
     conn = psycopg2.connect(
-        host=f"{creds[0]}",
-        database=f"{creds[1]}",
-        user=f"{creds[2]}",
-        password=f"{creds[3]}",
-        port = f"{creds[4]}"
+        host=host,
+        database=db,
+        user=user,
+        password=password,
+        port = port
     )
     return conn, conn.cursor()
 
