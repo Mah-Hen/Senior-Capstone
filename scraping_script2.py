@@ -10,6 +10,7 @@ import re
 import psycopg2
 from datetime import datetime
 import os
+import logging
 
 
 
@@ -180,16 +181,16 @@ def accessSeatingClass(wait, driver, class_type):
         EC.element_to_be_clickable((By.CSS_SELECTOR, "div[jsname='zkxPxd']")))
     seating_class_button.click()
     time.sleep(1)
-    if class_type == "Economy".lower():
+    if class_type.lower() == "Economy".lower():
         class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='1']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
         class_type_button.click()
-    if class_type == "Prem Econ".lower():
+    if class_type.lower() == "Prem Econ".lower():
         class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='2']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
         class_type_button.click()
-    if class_type == "Business".lower():
+    if class_type.lower() == "Business".lower():
         class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='3']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
         class_type_button.click()
-    if class_type == "First Class".lower():
+    if class_type.lower() == "First Class".lower():
         class_type_button = driver.find_element(By.CSS_SELECTOR, "ul[aria-label='Select your preferred seating class.']").find_element(By.CSS_SELECTOR, "li[data-value='4']") # 1 = Economy, 2 = Prem Econ, 3 = Business, 4 = First
         class_type_button.click()
     time.sleep(2)
@@ -264,6 +265,7 @@ def retrieveFlightDetails(driver, wait, round_trip):
     cnt = 0
     
     for result in all_results[:25]:
+        dropdown_button = None
         tuple_dict = {}
         wait.until(EC.visibility_of_element_located((By.XPATH, ".//div[@class='JMc5Xc']")))
         try:
@@ -276,9 +278,12 @@ def retrieveFlightDetails(driver, wait, round_trip):
             aria_label = aria_label.replace("\u202f", " ")
             # Call NLP function to extract flight information
             #Airplane Type
+            '''Throw a Selenium Wait Here'''
             dropdown_button = result.find_element(By.CSS_SELECTOR, "div[jsname='UsVyAb']").find_element(By.CSS_SELECTOR, "button[jsname='LgbsSe']")#.find_element(By.XPATH, "//Button[jsname='LgbsSe']")
-            dropdown_button.click()
             driver.execute_script("arguments[0].scrollIntoView(true);", dropdown_button)
+            wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button[jsname='LgbsSe']"))) #VfPpkd-LgbsSe VfPpkd-LgbsSe-OWXEXe-k8QpJ VfPpkd-LgbsSe-OWXEXe-Bz112c-M1Soyc VfPpkd-LgbsSe-OWXEXe-dgl2Hf nCP5yc AjY5Oe LQeN7 nJawce OTelKf XPGpHc mAozAc   # Check if the element is enabled 
+            driver.execute_script("arguments[0].click();", dropdown_button)
+            #dropdown_button.click()
             driver.execute_script("window.scrollBy(0,-100);")
             
             time.sleep(2)
@@ -381,7 +386,8 @@ def extractFlightInfo(nlp_doc):
     ]
     
     duration_pattern = [
-         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM", "OP":"?"}, {"LOWER": "min", "OP":"?"}]
+         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"POS": "NUM", "OP":"?"}, {"LOWER": "min", "OP":"?"}],
+         [{"TEXT": "Total"}, {"TEXT": "duration"}, {"POS": "NUM"}, {"LOWER": "min", "OP":"?"}],
     ]
     '''May need to change later'''
     num_layover_pattern = [
@@ -407,8 +413,20 @@ def extractFlightInfo(nlp_doc):
     
     arrival_time_pattern = [
        [{"TEXT":"arrives"}, {"LOWER":"at"}, {"POS": "PROPN", "OP": "+"},
-        {"POS": {"IN": ["SYM", "PUNCT", "CCONJ"]}, "OP": "?"}, {"POS": "PROPN", "OP": "+"}, {"TEXT": "Airport"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"}, 
-        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}]
+        {"POS": {"IN": ["SYM", "PUNCT", "CCONJ"]}, "OP": "?"}, {"POS": "PROPN", "OP": "?"}, {"TEXT": "Airport"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"}, 
+        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}],
+       [{"TEXT":"arrives"},{"LOWER":"at"}, {"POS":"PROPN", "OP":"+"}, {"POS":{"IN":["SYM", "PUNCT", "CCONJ"]}, "OP":"?"}, {"POS":"PROPN", "OP":"+"}, {"TEXT":"Airport"}, {"POS":"PUNCT", "OP":"?"}, {"POS":"PROPN", "OP":"?"}, {"POS":"PUNCT", "OP":"?"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"},
+        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}
+        ], 
+         [{"TEXT":"arrives"},{"LOWER":"at"}, {"POS":"PROPN", "OP":"+"}, {"POS":{"IN":["SYM", "PUNCT", "CCONJ"]}, "OP":"?"}, {"POS":"PROPN", "OP":"+"}, {"TEXT":"Sunport"}, {"POS":"PUNCT", "OP":"?"}, {"POS":"PROPN", "OP":"?"}, {"POS":"PUNCT", "OP":"?"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"},
+        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}
+        ]
+       ]
+    
+    arrival_time_pattern_2 = [
+       [{"TEXT":"arrives"},{"LOWER":"at"}, {"POS":"PROPN", "OP":"+"}, {"POS":{"IN":["SYM", "PUNCT", "CCONJ"]}, "OP":"?"}, {"POS":"PROPN", "OP":"+"}, {"TEXT":"Airport"}, {"POS":"PUNCT", "OP":"?"}, {"POS":"PROPN", "OP":"?"}, {"POS":"PUNCT", "OP":"?"}, {"LOWER":"at"}, {"POS": "NUM"}, {"IS_SPACE": True, "OP": "*"},
+        {"LOWER": {"IN": ["am", "pm"]}}, {"LOWER": "on"}, {"POS": "PROPN"}, {"TEXT": ","}, {"POS":"PROPN"}, {"POS": "NUM"}
+        ]
        ]
     
     layover_duration_pattern = [
@@ -423,16 +441,16 @@ def extractFlightInfo(nlp_doc):
         [{"LOWER":"is"}, {"LOWER":"a"}, {"POS": "NUM"}, {"LOWER": "hr"}, {"lower":"overnight", "OP": "?"}, {"LOWER":"layover"}]
     ]
     
-    airline_pattern = [
-        [{"LOWER": "with"}, {"POS": "PROPN"}]
+    airline_pattern = [ 
+        [{"LOWER": "with"}, {"POS": "PROPN"}], 
+        [{"LOWER": "with"}, {"POS": {"IN": ["ADJ", "PROPN"]}}, {"POS": "CCONJ", "OP":"?"}, {"POS": "PROPN"}]
     ]
     connecting_airport_pattern = [
         [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM", "CCONJ"]}, "OP":"?"}, 
-         {"POS":"PROPN", "OP":"+"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"+"}]
-        ]
-    connecting_airport_pattern_2 = [
+         {"POS":"PROPN", "OP":"*"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"+"}], 
+
         [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"},{"POS":{"IN":["PUNCT", "SYM", "CCONJ"]}, "OP":"?"}, 
-        {"POS":"PROPN", "OP":"+"}, {"TEXT": "Field"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"*"}, {"POS":"PROPN", "OP":"+"}]
+        {"POS":"PROPN", "OP":"*"}, {"TEXT": "Field"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"*"}, {"POS":"PROPN", "OP":"+"}]
         ]
     connecting_airport_pattern_3 = [
         [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"}, {"LOWER":"in"}, {"POS":"PROPN", "OP":"+"}],
@@ -446,6 +464,10 @@ def extractFlightInfo(nlp_doc):
     num_of_checked_pattern = [
         [{"POS": "NUM"}, {"LOWER": "checked"}, {"LOWER": "bags"}]
     ]
+
+    #test_pattern = [
+    #    [{"LOWER":"layover"}, {"LOWER": "at"}, {"POS":"PROPN", "OP":"+"}, {"POS":{"IN":["PUNCT", "SYM", "CCONJ"]}, "OP":"?"}, {"POS":"PROPN","OP":"*"}, {"TEXT": "Airport"}, {"LOWER": "in"}, {"POS": "PROPN", "OP":"+"}]
+    #]
     '''We're here for debugging'''
     matcher.add("FLIGHT_DURATION", duration_pattern) # correct
     latest = None
@@ -459,10 +481,11 @@ def extractFlightInfo(nlp_doc):
     matcher.add("FLIGHT_PRICE", price_pattern) # correct
     matcher.add("NUM_STOPS", num_stops_pattern) # correct
     matcher.add("NO_STOPS", no_stops_pattern) # correct
-    matcher.add("DEPARTURE_TIME", departure_time_pattern)
-    matcher.add("ARRIVAL_TIME", arrival_time_pattern)
+    matcher.add("DEPARTURE_TIME", departure_time_pattern, greedy='LONGEST')
+    matcher.add("ARRIVAL_TIME", arrival_time_pattern, greedy='LONGEST')
+    #matcher.add("ARRIVAL_TIME_2", arrival_time_pattern_2, greedy='LONGEST')
 
-    matcher.add("AIRLINE", airline_pattern) # correct
+    matcher.add("AIRLINE", airline_pattern, greedy='LONGEST') # correct
     matcher.add("NUM_CARRYON", num_of_carryon_pattern) # correct
     matcher.add("NUM_CARRYON_2", num_of_carryon_pattern_2) # correct
     matcher.add("NUM_CHECKED", num_of_checked_pattern) # correct
@@ -472,8 +495,9 @@ def extractFlightInfo(nlp_doc):
         print(span.text)
         extracted.append(span.text)
     clear_matcher(matcher)
+    #matcher.add("TEST_PATTERN", test_pattern, greedy='LONGEST')
     matcher.add("CONNECTING_AIRPORT", connecting_airport_pattern, greedy='LONGEST')
-    matcher.add("CONNECTING_AIRPORT_2", connecting_airport_pattern_2, greedy='LONGEST')
+    #matcher.add("CONNECTING_AIRPORT_2", connecting_airport_pattern_2, greedy='LONGEST')
     #matcher.add("CONNECTING_AIRPORT_3", connecting_airport_pattern_3, greedy='LONGEST')
     matcher.add("LAYOVER_DURATION", layover_duration_pattern) # correct
     matcher.add("LAYOVER_DURATION_2", layover_duration_pattern_2) # correct
@@ -700,45 +724,64 @@ def clean_data(data):
         flight_price = re.search(r'\d+', data[1])
         cleaned_data.append(flight_price.group())
         print(flight_price.group())
-        cleaned_data.append("0")
         print(data[1])
-        # Extract the number of carry-on bags
-        if len(data) > 6:
-            num_carryon = re.search(r"\d+", data[6])
-            cleaned_data.append(num_carryon.group())
-            print(num_carryon.group())
-            
-            # Extract the number of checked bags
-            num_checked = re.search(r"\d+", data[7])
-            cleaned_data.append(num_checked.group())
-            print(num_checked.group())
-        # Extract the airline
-        airline = re.search(r'\w+\Z', data[3])
-        cleaned_data.append(airline.group())
-        print(airline.group())
+        # Extract the number of stops
+        cleaned_data.append("0")
+        print("0")
+        
+        if len(data) > 5:
+            # Extract the airline
+            airline = re.search(r'\w+\Z', data[5])
+            cleaned_data.append(airline.group())
+            print(airline.group())
+        else:
+            # Extract the airline
+            airline = re.search(r'\w+\Z', data[3])
+            cleaned_data.append(airline.group())
+            print(airline.group())
+
+        
         # Extract the departure airport, time, and date
-        departure_airport = re.search(r"Leaves (.+? Airport)", data[4])
+        departure_airport = re.search(r"Leaves (.+? Airport)", data[-2])
         cleaned_data.append(departure_airport.group(1))
         print(departure_airport.group(1))
-        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
+        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[-2])
         cleaned_data.append(departure_time.group(1))
         print(departure_time.group(1))
-        departure_date = re.search(r"on (\w+, \w+ \d+)", data[4])
+        departure_date = re.search(r"on (\w+, \w+ \d+)", data[-2])
         cleaned_data.append(departure_date.group(1))
         print(departure_date.group(1))
         
 
         # Extract the arrival airport, time, and date
-        arrival_airport = re.search(r"arrives at (.+? Airport)", data[5])
+        arrival_airport = re.search(r"arrives at (.+? Airport)", data[-1])
         cleaned_data.append(arrival_airport.group(1))
         print(arrival_airport.group(1))
-        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[5])
+        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[-1])
         cleaned_data.append(arrival_time.group(1))
         print(arrival_time.group(1))
-        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[5])
+        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[-1])
         cleaned_data.append(arrival_date.group(1))
         print(arrival_date.group(1))
+
+        # Extract the number of carry-on bags
+        try:
+            num_carryon = re.search(r"\d+", data[3])
+            cleaned_data.append(num_carryon.group())
+            print(num_carryon.group())
+        except:
+            cleaned_data.append("0")
+            print("0")
             
+        try:   # Extract the number of checked bags
+            num_checked = re.search(r"\d+", data[4])
+            cleaned_data.append(num_checked.group())
+            print(num_checked.group())
+            
+        except:
+            cleaned_data.append("0")
+            print("0")
+
     else:
         flight_price = re.search(r'\d+', data[1])
         cleaned_data.append(flight_price.group())
@@ -748,48 +791,43 @@ def clean_data(data):
         cleaned_data.append(num_stops.group())
         print(num_stops.group())
         num_stops = int(num_stops.group()) # Use this to split the if/else logic regarding the number of layovers
-        '''May Need to change later'''
-        # Extract the number of layovers
-        #num_layovers = re.search(r"\d+", data[6]) # 5
-        #cleaned_data.append(num_layovers.group())
-        #print(num_layovers.group())
         # Extract the airline
-        airline = re.search(r'\w+\Z', data[3])
+        airline = re.search(r'\w+\Z', data[5]) # Has trouble with "American and Hawaiin" Format
         cleaned_data.append(airline.group())
         print(airline.group())
-        
+
         # Extract the departure airport, time, and date
-        departure_airport = re.search(r"Leaves (.+? Airport)", data[4])
+        departure_airport = re.search(r"Leaves (.+? Airport)", data[6])
         cleaned_data.append(departure_airport.group(1))
         print(departure_airport.group(1))
-        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[4])
+        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[6])
         cleaned_data.append(departure_time.group(1))
         print(departure_time.group(1))
-        departure_date = re.search(r"on (\w+, \w+ \d+)", data[4])
+        departure_date = re.search(r"on (\w+, \w+ \d+)", data[6])
         cleaned_data.append(departure_date.group(1))
         print(departure_date.group(1))
-        
+
 
         # Extract the arrival airport, time, and date
-        arrival_airport = re.search(r"arrives at (.+? Airport)", data[5])
+        arrival_airport = re.search(r"arrives at (.+? Airport)", data[7])
         cleaned_data.append(arrival_airport.group(1))
         print(arrival_airport.group(1))
-        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[5])
+        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[7])
         cleaned_data.append(arrival_time.group(1))
         print(arrival_time.group(1))
-        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[5])
+        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[7])
         cleaned_data.append(arrival_date.group(1))
         print(arrival_date.group(1))
         # Extract the number of carry-on bags
-        num_carryon = re.search(r"\d+", data[6])
+        num_carryon = re.search(r"\d+", data[3])
         cleaned_data.append(num_carryon.group())
         print(num_carryon.group())
-        
+
         # Extract the number of checked bags
-        num_checked = re.search(r"\d+", data[7])
+        num_checked = re.search(r"\d+", data[4])
         cleaned_data.append(num_checked.group())
         print(num_checked.group())
-        
+
         layover_info = {}
         if num_stops == 1:
             # Extract the layover duration
@@ -812,14 +850,14 @@ def clean_data(data):
             layover_city = re.search(r"in (.+)", data[-1])
             cleaned_data.append(layover_city.group(1))
             print(layover_city.group(1))
-            
-            
+
+
         else:
             cnt = 1
-            for i in range(8, 8+len(data[8:])-1, 2):
-                layovers = []
+            for i in range(8, 8+len(data[8:])-num_stops):
                 # Create a list of layover info throw it into a dictionary as the value with the key being the layover number
                 # Extract the layover duration
+                layovers = []
                 layover_duration = re.search(r"(\d+ hr \d+ min)", data[i]) # 6
                 if layover_duration is None:
                     layover_duration = re.search(r"(\d+ min)", data[i])
@@ -829,29 +867,29 @@ def clean_data(data):
                 print(layover_duration.group(1))
 
                 # Extract layover airport
-                layover_airport = re.search(r"at (.+? Airport)", data[i+1])
+                layover_airport = re.search(r"at (.+? Airport)", data[i+num_stops])
                 if layover_airport is None:
-                    layover_airport = re.search(r"at (.+? Field)", data[i+1])
+                    layover_airport = re.search(r"at (.+? Field)", data[i+num_stops])
                 layovers.append(layover_airport.group(1))
                 print(layover_airport.group(1))
 
                 # Extract layover city
-                layover_city = re.search(r"in (.+)", data[i+1])
+                layover_city = re.search(r"in (.+)", data[i+num_stops])
                 layovers.append(layover_city.group(1))
                 print(layover_city.group(1))
                 layover_info[cnt] = layovers
                 cnt += 1
-                cleaned_data.append(layover_info)
+            cleaned_data.append(layover_info)
                 
-    
-    # Extract the total duration of the flight
-    total_duration = re.search(r"(\d+ hr \d+ min)", data[0])
-    if total_duration is None:
-        total_duration = re.search(r"(\d+ min)", data[0])
+
+        # Extract the total duration of the flight
+        total_duration = re.search(r"(\d+ hr \d+ min)", data[0])
         if total_duration is None:
-            total_duration = re.search(r"(\d+ hr)", data[0])
-    cleaned_data.append(total_duration.group(1))
-    print(total_duration.group(1))
+            total_duration = re.search(r"(\d+ min)", data[0])
+            if total_duration is None:
+                total_duration = re.search(r"(\d+ hr)", data[0])
+        cleaned_data.append(total_duration.group(1))
+        print(total_duration.group(1))
     
     return cleaned_data
     
@@ -867,6 +905,69 @@ def concate(cleaned_data, num_adults, num_children, num_infants_in_seat, num_inf
     cleaned_data.append(airplane_type)
     return cleaned_data
 
+
+def insert_roundtrip(cursor, total_price, num_passengers):
+    '''Insert roundtrip information and return the roundtrip ID'''
+    cursor.execute(
+        "INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
+        (total_price, num_passengers)
+    )
+    return cursor.fetchone()[0]
+
+
+def insert_flight_features(cursor, one_way_info, flight_direction, airline_id, departure_airport_id, arrival_airport_id,
+                          departure_airplane_id, arrival_airplane_id, user_data, roundtrip_id=None):
+    '''Insert flight features and return the flight ID'''
+    query = """
+        INSERT INTO flight_features (
+            flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id,
+            departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration,
+            num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class,
+            round_trip, departure_airplane_type_id, arrival_airplane_type_id
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING flight_id
+    """
+    if int(one_way_info[1]) != 0:
+        values = (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id,
+            one_way_info[4], one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1],
+            one_way_info[1], one_way_info[9], one_way_info[10], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8],
+            departure_airplane_id, arrival_airplane_id)
+    else:
+        
+        values = (
+            one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id,
+            one_way_info[6], one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[-1],
+            one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8],
+            departure_airplane_id, arrival_airplane_id
+        )
+    if roundtrip_id:
+        query = query.replace("flight_direction", "roundtrip_id, flight_direction")
+        values = (one_way_info[0], roundtrip_id, flight_direction, *values[2:])
+    
+    cursor.execute(query, values)
+    return cursor.fetchone()[0]
+
+
+def insert_layover(cursor, flight_id, layover_airport_id, layover_duration):
+    '''Insert layover information'''
+    cursor.execute(
+        "INSERT INTO layovers (flight_id, layover_airport_id, layover_duration) VALUES (%s, %s, %s)",
+        (flight_id, layover_airport_id, layover_duration)
+    )
+
+def get_or_insert_id(cursor, table, column, value, return_column, additional_columns=None):
+    '''Get or insert a value into a table'''
+    cursor.execute(f"SELECT {return_column} FROM {table} WHERE {column} = %s", (value,))
+    result = cursor.fetchone()
+    if result:
+        return result[0]
+    else:
+        if additional_columns:
+            cursor.execute(f"INSERT INTO {table} ({column}, {', '.join(additional_columns.keys())}) VALUES (%s, {', '.join(['%s' for _ in additional_columns.keys()])}) RETURNING {return_column}", (value, *additional_columns.values()))
+        else:
+            cursor.execute(f"INSERT INTO {table} ({column}) VALUES (%s) RETURNING {return_column}", (value,))
+        return cursor.fetchone()[0]
+
 def pipeline(cleaned_data, user_data):
     '''Pipeline to store data into SQL database'''
     #['348', '1', 'Frontier', 'Baltimore/Washington International Thurgood Marshall Airport', '6:44 PM', 'Sunday, January 5', 'Denver International Airport', '7:04 AM', 'Monday, January 6', '14 hr 20 min', '1', '8 hr 22 min', 'Hartsfield-Jackson Atlanta International Airport', 'Atlanta', '0', '0', 2, 1, 0, 0, 'Economy', True, 'Airbus A320neo']
@@ -874,448 +975,115 @@ def pipeline(cleaned_data, user_data):
     connection, cursor = intializeDatabase()
     
     flight_direction = "Outgoing"
-    ttl_passengers = 0
-    for num in user_data[2:5]:
-        ttl_passengers += num
+    ttl_passengers = sum(user_data[2:6])
         
     for scraped_info in cleaned_data:
+        # Change one_way_info to dictionary
         one_way_info = scraped_info["One-Way Info"]
+        airline_id = get_or_insert_id(cursor, "airlines", "airline_name", one_way_info[2], "airline_id")
+        try:
+            if scraped_info["Departure Airplane Type"]:
+                departure_airplane_id = get_or_insert_id(cursor, "airplanes", "airplane_type", scraped_info["Departure Airplane Type"], "airplane_id")
+                arrival_airplane_id = get_or_insert_id(cursor, "airplanes", "airplane_type", scraped_info["Arrival Airplane Type"], "airplane_id")
+        except KeyError:
+            continue
+        departure_airport_id = get_or_insert_id(cursor, "airports", "airport_name", one_way_info[3], "airport_id", {"city": user_data[0]})
+        arrival_airport_id = get_or_insert_id(cursor, "airports", "airport_name", one_way_info[6], "airport_id", {"city": user_data[1]})
         
-        if len(one_way_info) == 10:
-                '''Airline'''
-                print(f"Inserting airline \"{one_way_info[2]}\" into database...")
-                cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[2],))
-                result = cursor.fetchone()
-                
-                if result:
-                    airline_id = result[0]
-                else:
-                    cursor.execute(
-                        "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
-                        (one_way_info[2],))
-                    connection.commit()
-                    airline_id = cursor.fetchone()[0]
-                
-                '''Departure\Arrival Airplane'''
-                departure_airplane = scraped_info["Departure Airplane Type"]
-                print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
-                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
-                result = cursor.fetchone()
-                
-                if result:
-                    departure_airplane_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                                (departure_airplane, ))
-                    connection.commit()
-                    departure_airplane_id = cursor.fetchone()[0]
-                    
-                '''Arrival Airplane Type'''
-                arrival_airplane = scraped_info["Arrival Airplane Type"]
-                print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
-                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
-                result = cursor.fetchone()
-                
-                if result:
-                    arrival_airplane_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                                (arrival_airplane, ))
-                    connection.commit()
-                    arrival_airplane_id = cursor.fetchone()[0]
-                
-                '''Departure\Arrival Airport'''
-                print(f"Inserting Departure Airport: \"{one_way_info[3]}\" and \"{user_data[0]}\" into database...")
-                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[3],user_data[0], ))
-                result = cursor.fetchone()
-                
-                if result:
-                    departure_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                (one_way_info[3], user_data[0], ))
-                
-                
-                print(f"Inserting Arrival Airport: \"{one_way_info[6]}\" and \"{user_data[1]}\" into database...")
-                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[6], user_data[1], ))
-                result = cursor.fetchone()
-                if result:
-                    arrival_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                    (one_way_info[6], user_data[1], ))   
-                
-                roundtrip_id = None
-                if user_data[-1] == True: # if roundtrip
-                    flight_direction = "Returning"
-                    rnd_trip_passengers = 0
-                    print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
-                    cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
-                            (cleaned_data[-1], ttl_passengers, ) )
-                    connection.commit()
-                    roundtrip_id = cursor.fetchone()[0]
-                    
-                print(f"Inserting flight features into database...")
-                if roundtrip_id:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[9], one_way_info[1], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )  
-                    connection.commit()
-                else:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[9], one_way_info[1], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )
-        elif len(one_way_info)>=12:  
-            if int(one_way_info[1]) == 0: # No stops
-                '''Airline'''
-                print(f"Inserting airline \"{one_way_info[4]}\" into database...")
-                cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[4],))
-                result = cursor.fetchone()
-                
-                if result:
-                    airline_id = result[0]
-                else:
-                    cursor.execute(
-                        "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
-                        (one_way_info[4],))
-                    connection.commit()
-                    airline_id = cursor.fetchone()[0]
-                
-                
-                '''Departure\Arrival Airplane'''
-                departure_airplane = scraped_info["Departure Airplane Type"]
-                print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
-                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
-                result = cursor.fetchone()
-                
-                if result:
-                    departure_airplane_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                                (departure_airplane, ))
-                    connection.commit()
-                    departure_airplane_id = cursor.fetchone()[0]
-                ''''''
-                arrival_airplane = scraped_info["Arrival Airplane Type"]
-                print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
-                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
-                result = cursor.fetchone()
-                
-                if result:
-                    arrival_airplane_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                                (departure_airplane, ))
-                    connection.commit()
-                    arrival_airplane_id = cursor.fetchone()[0]
-                
-                '''Departure\Arrival Airport'''
-                print(f"Inserting Departure Airport: \"{one_way_info[5]}\" and \"{user_data[0]}\" into database...")
-                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[5],user_data[0], ))
-                result = cursor.fetchone()
-                
-                if result:
-                    departure_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                (one_way_info[5], user_data[0], )) # Origin airport as well as city
-                    connection.commit()
-                    departure_airport_id = cursor.fetchone()[0]
-                
-                print(f"Inserting Arrival Airport: \"{one_way_info[8]}\" and \"{user_data[1]}\" into database...")
-                cursor.execute("SELEct airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[8], user_data[1], ))
-                result = cursor.fetchone()
-                
-                if result:
-                    arrival_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                    (one_way_info[8], user_data[1], )) # destination airport as well as city
-                    connection.commit()
-                    arrival_airport_id = cursor.fetchone()[0]
-                
-                roundtrip_id = None
-                if user_data[-1] == True: # if roundtrip
-                    flight_direction = "Returning"
-                    rnd_trip_passengers = 0
-                    print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
-                    cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
-                            (cleaned_data[-1], ttl_passengers, ) )
-                    connection.commit()
-                    roundtrip_id = cursor.fetchone()[0]
-                    '''Work in Progress'''
-                    # Some code here for round trip automation
-                    #
-                    #
-                
-                
-                print(f"Inserting flight features into database...")
-                if roundtrip_id:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[-1], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )  
-                    connection.commit()
-                else:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[-1], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )  
-                    connection.commit()
-                flight_id = cursor.fetchone()[0]
-                
-                
-                
-            else: 
-                
-                '''Airline'''
-                print(f"Inserting airline \"{one_way_info[2]}\" into database...")
-                cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[2],))
-                result = cursor.fetchone()
-                
-                if result:
-                    airline_id = result[0]
-                else:
-                    cursor.execute(
-                        "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
-                        (one_way_info[2],))
-                    connection.commit()
-                    airline_id = cursor.fetchone()[0]
-                
-                
-                '''Departure\Arrival Airplane'''
-                departure_airplane = scraped_info["Departure Airplane Type"]
-                print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
-                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
-                result = cursor.fetchone()
-                
-                if result:
-                    departure_airplane_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                                (departure_airplane, ))
-                    connection.commit()
-                    departure_airplane_id = cursor.fetchone()[0]
-                ''''''
-                arrival_airplane = scraped_info["Arrival Airplane Type"]
-                print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
-                cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
-                result = cursor.fetchone()
-                
-                if result:
-                    arrival_airplane_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                                (departure_airplane, ))
-                    connection.commit()
-                    arrival_airplane_id = cursor.fetchone()[0]
-                
-                '''Departure\Arrival Airport'''
-                print(f"Inserting Departure Airport: \"{one_way_info[3]}\" and \"{user_data[0]}\" into database...")
-                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[3],user_data[0], ))
-                result = cursor.fetchone()
-                
-                if result:
-                    departure_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                (one_way_info[3], user_data[0], )) # Origin airport as well as city
-                    connection.commit()
-                    departure_airport_id = cursor.fetchone()[0]
-                
-                print(f"Inserting Arrival Airport: \"{one_way_info[6]}\" and \"{user_data[1]}\" into database...")
-                cursor.execute("SELEct airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[6], user_data[1], ))
-                result = cursor.fetchone()
-                
-                if result:
-                    arrival_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                    (one_way_info[6], user_data[1], )) # destination airport as well as city
-                    connection.commit()
-                    arrival_airport_id = cursor.fetchone()[0]
-                
-                roundtrip_id = None
-                if user_data[-1] == True: # if roundtrip
-                    flight_direction = "Returning"
-                    rnd_trip_passengers = 0
-                    print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
-                    cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
-                            (cleaned_data[-1], ttl_passengers, ) )
-                    connection.commit()
-                    roundtrip_id = cursor.fetchone()[0]
-                
-                
-                print(f"Inserting flight features into database...")
-                if roundtrip_id:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[9], one_way_info[10], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )  
-                    connection.commit()
-                else:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[4],  one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1], one_way_info[1], one_way_info[9], one_way_info[10], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )  
-                    connection.commit()
-                flight_id = cursor.fetchone()[0]
-                
-                '''Layover Airport'''
-                print(f"Inserting \"{one_way_info[3]}\" into database...\n")
-                cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s AND city = %s", (one_way_info[3], one_way_info[4],))
-                result = cursor.fetchone()
-                
-                if result:
-                    layover_airport_id = result[0]
-                else:
-                    cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                (one_way_info[3], one_way_info[4], ) )
-                    connection.commit()
-                    layover_airport_id = cursor.fetchone()[0]
-            
-                cursor.execute(
-                    "INSERT INTO layovers (flight_id, layover_airport_id, layover_duration) VALUES (%s, %s, %s)",
-                    (flight_id, layover_airport_id, one_way_info[9], ) 
-                    )
-                connection.commit()
-            
-        else:   
-            '''Airline'''
-            print(f"Inserting airline \"{one_way_info[4]}\" into database...")
-            cursor.execute("SELECT airline_id FROM airlines WHERE airline_name = %s", (one_way_info[4],))
-            result = cursor.fetchone()
-            
-            if result:
-                airline_id = result[0]
-            else:
-                cursor.execute(
-                    "INSERT INTO airlines (airline_name) VALUES (%s) RETURNING airline_id", 
-                    (one_way_info[4],))
-                connection.commit()
-                airline_id = cursor.fetchone()[0]
-            
-            '''Departure Airplane Type'''
-            departure_airplane = scraped_info["Departure Airplane Type"]
-            print(f"Inserting departure airplane \"{departure_airplane}\" into database...")
-            cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (departure_airplane,))
-            result = cursor.fetchone()
-            
-            if result:
-                departure_airplane_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                            (departure_airplane, ))
-                connection.commit()
-                departure_airplane_id = cursor.fetchone()[0]
-                
-            '''Arrival Airplane Type'''
-            arrival_airplane = scraped_info["Arrival Airplane Type"]
-            print(f"Inserting arrival airplane \"{arrival_airplane}\" into database...")
-            cursor.execute("SELECT airplane_id FROM airplanes WHERE airplane_type = %s", (arrival_airplane,))
-            result = cursor.fetchone()
-            
-            if result:
-                arrival_airplane_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airplanes (airplane_type) VALUES (%s) RETURNING airplane_id",
-                            (arrival_airplane, ))
-                connection.commit()
-                arrival_airplane_id = cursor.fetchone()[0]
-            
-            '''Departure\Arrival Airport'''
-            print(f"Inserting Departure Airport: \"{one_way_info[5]}\" and \"{user_data[0]}\" into database...")
-            cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[5],user_data[0], ))
-            result = cursor.fetchone()
-            
-            if result:
-                departure_airport_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                            (one_way_info[5], user_data[0], )) # Origin airport as well as city
-                connection.commit()
-                departure_airport_id = cursor.fetchone()[0]
-            
-            
-            print(f"Inserting Arrival Airport: \"{one_way_info[8]}\" and \"{user_data[1]}\" into database...")
-            cursor.execute("SELECT airport_id FROM airports WHERE airport_name = %s and city = %s", (one_way_info[8], user_data[1], ))
-            result = cursor.fetchone()
-            
-            if result:
-                arrival_airport_id = result[0]
-            else:
-                cursor.execute("INSERT INTO airports (airport_name, city) VALUES (%s, %s) RETURNING airport_id",
-                                (one_way_info[8], user_data[1], )) # destination airport as well as city
-                connection.commit()
-                arrival_airport_id = cursor.fetchone()[0]
-            
-            roundtrip_id = None
-            if user_data[-1] == True: # if roundtrip
-                flight_direction = "Returning"
-                rnd_trip_passengers = 0
-                print(f"Inserting \"{cleaned_data[-1]}\" and \"{ttl_passengers}\" into database...")
-                cursor.execute("INSERT INTO roundtrips (total_price, num_passengers) VALUES (%s, %s) RETURNING roundtrip_id",
-                        (cleaned_data[-1], ttl_passengers, ) )
-                connection.commit()
-                roundtrip_id = cursor.fetchone()[0]
-                
-            print(f"Inserting flight features into database...")
-            if roundtrip_id:
-                cursor.execute(
-                    "INSERT INTO flight_features (flight_price, roundtrip_id, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                        (one_way_info[0],  roundtrip_id, flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[11], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                        )  
-                connection.commit()
-            else:
-                try:
-                    cursor.execute(
-                        "INSERT INTO flight_features (flight_price, flight_direction, num_stops, airline_id, search_date, departure_airport_id, departure_time, departure_date, arrival_airport_id, arrival_time, arrival_date, travel_duration, num_layovers, num_carryon, num_checked, num_adults, num_children, num_infants_in_seat, num_infants_on_lap, seating_class, round_trip, departure_airplane_type_id, arrival_airplane_type_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING flight_id",
-                            (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id, one_way_info[6],  one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[11], one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8], departure_airplane_id, arrival_airplane_id,)
-                            )  
-                except IndexError: 
-                    print("Error")
-                    exit()
-                connection.commit()
-                
-            flight_id = cursor.fetchone()[0]
-                
+        roundtrip_id = None
+        if user_data[-1]:
+            flight_direction = "Returning"
+            roundtrip_id = get_or_insert_id(cursor, "roundtrips", "total_price", cleaned_data[-1], "roundtrip_id", {"num_passengers": ttl_passengers})
+            connection.commit()
+        
+        flight_id = insert_flight_features(cursor, one_way_info, flight_direction, airline_id, departure_airport_id, arrival_airport_id, departure_airplane_id, arrival_airplane_id, user_data, roundtrip_id)
         connection.commit()
+        if len(one_way_info) > 12 and int(one_way_info[1]) != 0:  # If there are layovers
+            if int(one_way_info[1]) == 1:
+                layover_airport_id = get_or_insert_id(cursor, 'airports', 'airport_name', one_way_info[12], 'airport_id', {'city': one_way_info[13]})
+                insert_layover(cursor, flight_id, layover_airport_id, one_way_info[11])
+                connection.commit()
+            else:
+                for _, layover_info in one_way_info[11].items():
+                    layover_airport_id = get_or_insert_id(cursor, 'airports', 'airport_name', layover_info[1], 'airport_id', {'city': layover_info[2]})
+                    insert_layover(cursor, flight_id, layover_airport_id, layover_info[0])
+                    connection.commit()
+
     print("\n\tFinished.")
     closeConnection(connection, cursor)
-      
-    '''
-        insertIntoAirlines()
-        insertIntoAirplanes()
-        insertIntoAirports()
-        insertIntoRoundTrips()
-        insertIntoflight_features()
-        inserIntoLayovers()
-    '''
 
+def createLog(element):
+    '''Create a log file'''
+    logging.basicConfig(
+        filename= datetime.now().strftime("scrape.log"),
+        level = logging.WARNING,
+        format = "%(asctime)s:%(levelname)s:%(message)s",
+        datefmt = "%m/%d/%Y %I:%M:%S %p",
+    )
+    logging.debug(f"Log file created at this point {element}")
+    
     
 def driver():
-    #string = "From 404 US dollars round trip total. 1 stop flight with Southwest. Leaves Baltimore/Washington International Thurgood Marshall Airport at 8:00 AM on Sunday, April 6 and arrives at Phoenix Sky Harbor International Airport at 3:55 PM on Sunday, April 6. Total duration 10 hr 55 min. Layover (1 of 1) is a 5 hr layover at St. Louis Lambert International Airport in St. Louis. 1 carry-on bag included. 2 checked bags included.  Select flight"
-    #print(string)
-    #extractFlightInfo(nlp(string))
+    #pipeline(['211', '2', 'Southwest', 'Baltimore/Washington International Thurgood Marshall Airport', '5:35 PM', 'Thursday, April 3', 'Albany International Airport', '11:30 PM', 'Thursday, April 3', '1', '2', {1: ['35 min', 'Cleveland Hopkins International Airport', 'Cleveland'], 2: ['45 min', 'Chicago Midway International Airport', 'Chicago']}, '5 hr 55 min'], ["", "", 0, 0, 0, 0, 1, True])
     #exit()
+    '''
+    string = "From 4037 US dollars. 4 stops flight with Delta, Virgin Atlantic and Airlink. Leaves Baltimore/Washington International Thurgood Marshall Airport at 12:00 PM on Thursday, March 20 and arrives at Saint Helena Airport at 1:15 PM on Saturday, March 22. Total duration 45 hr 15 min. Layover (1 of 4) is a 4 hr 16 min layover at Hartsfield-Jackson Atlanta International Airport in Atlanta. Layover (2 of 4) is a 12 hr layover at Heathrow Airport in London. Layover (3 of 4) is a 1 hr 5 min layover at Cape Town International Airport in Cape Town. Layover (4 of 4) is a 30 min layover at Walvis Bay International Airport in Walvis Bay. Carbon emissions estimate: 1,665 kilograms. Select flight" #"From 706 US dollars. 2 stops flight with Icelandair and Scandinavian Airlines. Operated by Sas Connect. Leaves Baltimore/Washington International Thurgood Marshall Airport at 8:30 PM on Sunday, March 30 and arrives at Athens International Airport "Eleftherios Venizelos" at 6:50 PM on Monday, March 31. Total duration 15 hr 20 min. Layover (1 of 2) is a 1 hr 15 min layover at Keflavík International Airport in Reykjavík. Layover (2 of 2) is a 1 hr 35 min layover at Copenhagen Airport in Copenhagen. Select flight"
+    print(string)
+    doc = nlp(string)
+    for token in doc:
+        print(f"Token: {token.text}, Lemma: {token.lemma_}, POS: {token.pos_}, Tag: {token.tag_}, Dep: {token.dep_}, Shape: {token.shape_}, is_alpha: {token.is_alpha}, is_stop: {token.is_stop}")
+    extractFlightInfo(doc)
+    exit()
+    '''
+    seating_class = "Business"
+    f = open("Progress.txt", "r")
+    cnt = int(f.read())
+    cnt = cnt % 50
+    print(cnt)
+    state_caps = [
+    "Montgomery, Alabama", "Phoenix, Arizona", "Little Rock, Arkansas", "Sacramento, California", 
+    "Denver, Colorado", "Hartford, Connecticut", "Tallahassee, Florida", "Atlanta, Georgia", 
+    "Honolulu, Hawaii", "Boise, Idaho", "Springfield, Illinois", "Indianapolis, Indiana", 
+    "Des Moines, Iowa", "Topeka, Kansas", "Frankfort, Kentucky", "Baton Rouge, Louisiana", 
+    "Augusta, Maine", "Boston, Massachusetts", "Lansing, Michigan", "Saint Paul, Minnesota", 
+    "Jackson, Mississippi", "Jefferson City, Missouri", "Helena, Montana", "Carson City, Nevada", 
+    "Concord, New Hampshire", "Santa Fe, New Mexico", "Albany, New York", "Raleigh, North Carolina", 
+    "Bismarck, North Dakota", "Columbus, Ohio", "Oklahoma City, Oklahoma", "Salem, Oregon", 
+    "Providence, Rhode Island", "Columbia, South Carolina", "Pierre, South Dakota", "Nashville, Tennessee", 
+    "Austin, Texas", "Salt Lake City, Utah", "Montpelier, Vermont", "Richmond, Virginia", 
+    "Olympia, Washington", "Charleston, West Virginia", "Madison, Wisconsin", "Cheyenne, Wyoming"
+]
+    print(len(state_caps))
+    start = time.perf_counter()
     
-    state_caps = ["Montgomery", "Phoenix", "Little Rock", "Sacramento", "Denver", "Hartford", "Dover", "Tallahassee", "Atlanta", "Honolulu", "Boise", "Springfield", "Indianapolis", "Des Moines", "Topeka", "Frankfort", "Baton Rougue", "Augusta", "Boston", "Lansing", "Saint Paul", "Jackson", "Jefferson City", "Helena", "Lincoln", "Carson City", "Concord", "Trenton", "Santa Fe", "Albany", "Raleigh", "Bismarck", "Columbus", "Oklahoma City", "Salem", "Harrisburg", "Providence", "Columbia", "Pierre", "Nashville", "Austin", "Salt Lake City", "Montpelier", "Richmond", "Olympia", "Charleston", "Madison", "Cheyenne"]
-    for capitals in state_caps:
+    for capitals in state_caps[cnt:]:
+        tic = time.perf_counter()
+        cnt += 1
+        with open("Progress.txt", "w") as f:
+            f.write(f"{cnt}")
+        f.close()
         current_date = datetime.now().date()
         URL = "https://www.google.com/travel/explore"
         driver, wait = intialize(URL)
         accessOriginDestination(wait, driver, "BWI ", f"{capitals} ")
         access_Flights(driver)
+        changeRoundTrip(wait, driver, False)
+        accessSeatingClass(wait, driver, seating_class)
         extraced_flight_info = retrieveFlightDetails(driver, wait, False)
         
-        user_data = ["BWI", f"{capitals}", 1, 0, 0, 0, "Economy", current_date, False]
+        user_data = ["BWI", f"{capitals}", 1, 0, 0, 0, seating_class, current_date, False]
+        createLog(capitals)
         pipeline(extraced_flight_info, user_data)
         print("\nComplete.")
         driver.close()
+        toc = time.perf_counter()
+        print(f"Time elapsed: {toc-tic}")
     
-   
+    stop = time.perf_counter()
+    print(f"Overall Execution: {stop-start}")
+    with open("Progress.txt", "w") as f:
+            f.write(0)
+    f.close()
     exit()
     '''Some User-centric Motion'''
     URL = "https://www.google.com/travel/explore"

@@ -23,7 +23,7 @@ def intialize(URL):
     driver.get(URL)
 
     # Pause execution of code for 2 seconds to allow the page to load fully
-    time.sleep(2)
+    time.sleep(2)               
 
     # Initialize WebDriverWait object to wait for elements on the page for 5 seconds
     wait = WebDriverWait(driver, 5)
