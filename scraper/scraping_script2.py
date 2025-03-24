@@ -714,119 +714,199 @@ def accessroundTripInfo():
 
 def clean_data(data):
     '''Extracting/Cleaning the extracted data using regex'''
-    cleaned_data = []
+    cleaned_data = {}
     
     
     
     # Extract the number of stops
     if data[2] == "Nonstop":
         # Extract the flight price
-        flight_price = re.search(r'\d+', data[1])
-        cleaned_data.append(flight_price.group())
-        print(flight_price.group())
-        print(data[1])
+        try:
+            flight_price = re.search(r'\d+', data[1])
+            cleaned_data["Price"] = flight_price.group()
+            print(flight_price.group())
+        except:
+            cleaned_data["Price"] = "0"
+            print("0")
         # Extract the number of stops
-        cleaned_data.append("0")
+        cleaned_data["Number of Stops"] = "0"
         print("0")
         
         if len(data) > 5:
             # Extract the airline
-            airline = re.search(r'\w+\Z', data[5])
-            cleaned_data.append(airline.group())
-            print(airline.group())
+            try:
+                airline = re.search(r'\w+\Z', data[5])
+                cleaned_data["Airline"] = airline.group()
+                print(airline.group())
+            except:
+                cleaned_data["Airline"] = "Unknown"
+                print("Unknown")
         else:
             # Extract the airline
-            airline = re.search(r'\w+\Z', data[3])
-            cleaned_data.append(airline.group())
-            print(airline.group())
+            try:
+                airline = re.search(r'\w+\Z', data[3])
+                cleaned_data["Airline"] = airline.group()
+                print(airline.group())
+            except:
+                cleaned_data["Airline"] = "Unknown"
+                print("Unknown")
 
         
         # Extract the departure airport, time, and date
-        departure_airport = re.search(r"Leaves (.+? Airport)", data[-2])
-        cleaned_data.append(departure_airport.group(1))
-        print(departure_airport.group(1))
-        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[-2])
-        cleaned_data.append(departure_time.group(1))
-        print(departure_time.group(1))
-        departure_date = re.search(r"on (\w+, \w+ \d+)", data[-2])
-        cleaned_data.append(departure_date.group(1))
-        print(departure_date.group(1))
+        try:
+            departure_airport = re.search(r"Leaves (.+? Airport)", data[-2])
+            cleaned_data["Departure Airport"] = departure_airport.group(1)
+            print(departure_airport.group(1))
+        except:
+            cleaned_data["Departure Airport"] = "Unknown"
+            print("Unknown")
+        try:
+            departure_time = re.search(r"(\d+:\d+ [AP]M)", data[-2])
+            cleaned_data["Departure Time"] = departure_time.group(1)
+            print(departure_time.group(1))
+        except:
+            cleaned_data["Departure Time"] = "Unknown"
+            print("Unknown")
+        try:
+            departure_date = re.search(r"on (\w+, \w+ \d+)", data[-2])
+            cleaned_data["Departure Date"] = departure_date.group(1)
+            print(departure_date.group(1))
+        except:
+            cleaned_data["Departure Date"] = "Unknown"
+            print("Unknown")
         
 
         # Extract the arrival airport, time, and date
-        arrival_airport = re.search(r"arrives at (.+? Airport)", data[-1])
-        cleaned_data.append(arrival_airport.group(1))
-        print(arrival_airport.group(1))
-        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[-1])
-        cleaned_data.append(arrival_time.group(1))
-        print(arrival_time.group(1))
-        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[-1])
-        cleaned_data.append(arrival_date.group(1))
-        print(arrival_date.group(1))
+        try:   
+            arrival_airport = re.search(r"arrives at (.+? Airport)", data[-1])
+            cleaned_data["Arrival Airport"] = arrival_airport.group(1)
+            print(arrival_airport.group(1))
+        except:
+            cleaned_data["Arrival Airport"] = "Unknown"
+            print("Unknown")
+        try:
+            arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[-1])
+            cleaned_data["Arrival Time"] = arrival_time.group(1)
+            print(arrival_time.group(1))
+        except:
+            cleaned_data["Arrival Time"] = "Unknown"
+            print("Unknown")
+        try:
+            arrival_date = re.search(r"on (\w+, \w+ \d+)", data[-1])
+            cleaned_data["Arrival Date"] = arrival_date.group(1)
+            print(arrival_date.group(1))
+        except:
+            cleaned_data["Arrival Date"] = "Unknown"
+            print("Unknown")
 
         # Extract the number of carry-on bags
         try:
             num_carryon = re.search(r"\d+", data[3])
-            cleaned_data.append(num_carryon.group())
+            cleaned_data["Number of Carry-On Bags"] = num_carryon.group()
             print(num_carryon.group())
         except:
-            cleaned_data.append("0")
+            cleaned_data["Number of Carry-On Bags"] = "0"
             print("0")
             
         try:   # Extract the number of checked bags
             num_checked = re.search(r"\d+", data[4])
-            cleaned_data.append(num_checked.group())
+            cleaned_data["Number of Checked Bags"] = num_checked.group()
             print(num_checked.group())
             
         except:
-            cleaned_data.append("0")
+            cleaned_data["Number of Checked Bags"] = "0"
             print("0")
 
     else:
-        flight_price = re.search(r'\d+', data[1])
-        cleaned_data.append(flight_price.group())
-        print(flight_price.group())
         # data = [price, # stops, airline, departure info, arrival info, total duration, # layovers, layover duration, layover info, num carryon, num checked]
-        num_stops = re.search(r'\d+', data[2])
-        cleaned_data.append(num_stops.group())
-        print(num_stops.group())
+        try:
+            flight_price = re.search(r'\d+', data[1])
+            cleaned_data["Price"] = flight_price.group()
+            print(flight_price.group())
+        except:
+            cleaned_data["Price"] = "0"
+            print("0")
+        try:
+            num_stops = re.search(r'\d+', data[2])
+            cleaned_data["Number of Stops"] = num_stops.group()
+            print(num_stops.group())
+        except:
+            cleaned_data["Number of Stops"] = "0"
+            print("0")
         num_stops = int(num_stops.group()) # Use this to split the if/else logic regarding the number of layovers
+
         # Extract the airline
-        airline = re.search(r'\w+\Z', data[5]) # Has trouble with "American and Hawaiin" Format
-        cleaned_data.append(airline.group())
-        print(airline.group())
+        try:
+            airline = re.search(r'\w+\Z', data[5]) # Has trouble with "American and Hawaiin" Format
+            cleaned_data["Airline"] = airline.group()
+            print(airline.group())
+        except:
+            cleaned_data["Airline"] =  "Unknown"
+            print("Unknown")
 
         # Extract the departure airport, time, and date
-        departure_airport = re.search(r"Leaves (.+? Airport)", data[6])
-        cleaned_data.append(departure_airport.group(1))
-        print(departure_airport.group(1))
-        departure_time = re.search(r"(\d+:\d+ [AP]M)", data[6])
-        cleaned_data.append(departure_time.group(1))
-        print(departure_time.group(1))
-        departure_date = re.search(r"on (\w+, \w+ \d+)", data[6])
-        cleaned_data.append(departure_date.group(1))
-        print(departure_date.group(1))
+        try:    
+            departure_airport = re.search(r"Leaves (.+? Airport)", data[6])
+            cleaned_data["Departure Airport"] = departure_airport.group(1)
+            print(departure_airport.group(1))
+        except:
+            cleaned_data["Departure Airport"] = ("Unknown")
+            print("Unknown")
+        try:
+            departure_time = re.search(r"(\d+:\d+ [AP]M)", data[6])
+            cleaned_data["Departure Time"] = departure_time.group(1)
+            print(departure_time.group(1))
+        except:
+            cleaned_data["Departure Time"] = "Unknown"
+            print("Unknown")
+        try:
+            departure_date = re.search(r"on (\w+, \w+ \d+)", data[6])
+            cleaned_data["Departure Date"] = departure_date.group(1)
+            print(departure_date.group(1))
+        except:
+            cleaned_data["Departure Date"] = "Unknown"
+            print("Unknown")
 
 
         # Extract the arrival airport, time, and date
-        arrival_airport = re.search(r"arrives at (.+? Airport)", data[7])
-        cleaned_data.append(arrival_airport.group(1))
-        print(arrival_airport.group(1))
-        arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[7])
-        cleaned_data.append(arrival_time.group(1))
-        print(arrival_time.group(1))
-        arrival_date = re.search(r"on (\w+, \w+ \d+)", data[7])
-        cleaned_data.append(arrival_date.group(1))
-        print(arrival_date.group(1))
-        # Extract the number of carry-on bags
-        num_carryon = re.search(r"\d+", data[3])
-        cleaned_data.append(num_carryon.group())
-        print(num_carryon.group())
+        try:    
+            arrival_airport = re.search(r"arrives at (.+? Airport)", data[7])
+            cleaned_data["Arrival Airport"] = arrival_airport.group(1)
+            print(arrival_airport.group(1))
+        except:
+            cleaned_data["Arrival Airport"] = "Unknown"
+            print("Unknown")
+        try:
+            arrival_time = re.search(r"(\d+:\d+ [AP]M)", data[7])
+            cleaned_data["Arrival Time"] = arrival_time.group(1)
+            print(arrival_time.group(1))
+        except:
+            cleaned_data["Arrival Time"] = "Unknown"
+            print("Unknown")
+        try:
+            arrival_date = re.search(r"on (\w+, \w+ \d+)", data[7])
+            cleaned_data["Arrival Date"] = arrival_date.group(1)
+            print(arrival_date.group(1))
+        except:
+            cleaned_data["Arrival Date"] = "Unknown"
+            print("Unknown")
+        try:
+            # Extract the number of carry-on bags
+            num_carryon = re.search(r"\d+", data[3])
+            cleaned_data["Number of Carry-On Bags"] = num_carryon.group()
+            print(num_carryon.group())
+        except:
+            cleaned_data["Number of Carry-On Bags"] = "0"
+            print("0")
 
         # Extract the number of checked bags
-        num_checked = re.search(r"\d+", data[4])
-        cleaned_data.append(num_checked.group())
-        print(num_checked.group())
+        try:
+            num_checked = re.search(r"\d+", data[4])
+            cleaned_data["Number of Checked Bags"] = num_checked.group()
+            print(num_checked.group())
+        except: 
+            cleaned_data["Number of Checked Bags"]  = "0"
+            print("0")
 
         layover_info = {}
         if num_stops == 1:
@@ -836,20 +916,28 @@ def clean_data(data):
                 layover_duration = re.search(r"(\d+ min)", data[-2])
                 if layover_duration is None:
                     layover_duration = re.search(r"(\d+ hr)", data[-2])
-            cleaned_data.append(layover_duration.group(1))
+            cleaned_data["Layover Duration"] = layover_duration.group(1)
             print(layover_duration.group(1))
 
             # Extract layover airport
-            layover_airport = re.search(r"at (.+? Airport)", data[-1])
-            if layover_airport is None:
-                layover_airport = re.search(r"at (.+? Field)", data[-1])
-            cleaned_data.append(layover_airport.group(1))
-            print(layover_airport.group(1))
-
-            # Extract layover city
-            layover_city = re.search(r"in (.+)", data[-1])
-            cleaned_data.append(layover_city.group(1))
-            print(layover_city.group(1))
+            try:
+                layover_airport = re.search(r"at (.+? Airport)", data[-1])
+                if layover_airport is None:
+                    layover_airport = re.search(r"at (.+? Field)", data[-1])
+                cleaned_data["Layover Airport"] = layover_airport.group(1)
+                print(layover_airport.group(1)) 
+            except:
+                cleaned_data["Layover Airport"] = "None"
+                print(layover_airport.group(1))
+            
+            try:
+                # Extract layover city
+                layover_city = re.search(r"in (.+)", data[-1])
+                cleaned_data["Layover City"] = layover_city.group(1)
+                print(layover_city.group(1))
+            except:
+                cleaned_data["Layover City"] = "None"
+                print("None")
 
 
         else:
@@ -857,39 +945,43 @@ def clean_data(data):
             for i in range(8, 8+len(data[8:])-num_stops):
                 # Create a list of layover info throw it into a dictionary as the value with the key being the layover number
                 # Extract the layover duration
-                layovers = []
+                layovers = {"Layover Duration": None, "Layover Airport": None, "Layover City": None}
                 layover_duration = re.search(r"(\d+ hr \d+ min)", data[i]) # 6
                 if layover_duration is None:
                     layover_duration = re.search(r"(\d+ min)", data[i])
                     if layover_duration is None:
                         layover_duration = re.search(r"(\d+ hr)", data[i])
-                layovers.append(layover_duration.group(1))
+                layovers["Layover Duration"] = layover_duration.group(1)
                 print(layover_duration.group(1))
 
                 # Extract layover airport
                 layover_airport = re.search(r"at (.+? Airport)", data[i+num_stops])
                 if layover_airport is None:
                     layover_airport = re.search(r"at (.+? Field)", data[i+num_stops])
-                layovers.append(layover_airport.group(1))
+                layovers["Layover Airport"] = layover_airport.group(1)
                 print(layover_airport.group(1))
 
                 # Extract layover city
                 layover_city = re.search(r"in (.+)", data[i+num_stops])
-                layovers.append(layover_city.group(1))
+                layovers["Layover City"] = layover_city.group(1)
                 print(layover_city.group(1))
                 layover_info[cnt] = layovers
                 cnt += 1
-            cleaned_data.append(layover_info)
+            cleaned_data["Layovers"] = layover_info
                 
 
-        # Extract the total duration of the flight
+    # Extract the total duration of the flight
+    try:
         total_duration = re.search(r"(\d+ hr \d+ min)", data[0])
         if total_duration is None:
             total_duration = re.search(r"(\d+ min)", data[0])
             if total_duration is None:
                 total_duration = re.search(r"(\d+ hr)", data[0])
-        cleaned_data.append(total_duration.group(1))
+        cleaned_data["Total Duration"] = total_duration.group(1)
         print(total_duration.group(1))
+    except:
+        cleaned_data["Total Duration"] = "0"
+
     
     return cleaned_data
     
@@ -927,17 +1019,17 @@ def insert_flight_features(cursor, one_way_info, flight_direction, airline_id, d
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING flight_id
     """
-    if int(one_way_info[1]) != 0:
-        values = (one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id,
-            one_way_info[4], one_way_info[5], arrival_airport_id, one_way_info[7], one_way_info[8], one_way_info[-1],
-            one_way_info[1], one_way_info[9], one_way_info[10], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8],
+    if int(one_way_info["Number of Stops"]) != 0:
+        values = (one_way_info["Price"], flight_direction, one_way_info["Number of Stops"], airline_id, user_data[7], departure_airport_id,
+            one_way_info["Departure Time"], one_way_info["Departure Date"], arrival_airport_id, one_way_info["Arrival Time"], one_way_info["Arrival Date"], one_way_info["Total Duration"],
+            one_way_info["Number of Stops"], one_way_info["Number of Carry-On Bags"], one_way_info["Number of Checked Bags"], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8],
             departure_airplane_id, arrival_airplane_id)
     else:
         
         values = (
-            one_way_info[0], flight_direction, one_way_info[1], airline_id, user_data[7], departure_airport_id,
-            one_way_info[6], one_way_info[7], arrival_airport_id, one_way_info[9], one_way_info[10], one_way_info[-1],
-            one_way_info[1], one_way_info[2], one_way_info[3], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8],
+            one_way_info["Price"], flight_direction, one_way_info["Number of Stops"], airline_id, user_data[7], departure_airport_id,
+            one_way_info["Departure Time"], one_way_info["Departure Date"], arrival_airport_id, one_way_info["Arrival Time"], one_way_info["Arrival Date"], one_way_info["Total Duration"],
+            one_way_info["Number of Stops"], one_way_info["Number of Carry-On Bags"], one_way_info["Number of Checked Bags"], user_data[2], user_data[3], user_data[4], user_data[5], user_data[6], user_data[8],
             departure_airplane_id, arrival_airplane_id
         )
     if roundtrip_id:
@@ -980,15 +1072,15 @@ def pipeline(cleaned_data, user_data):
     for scraped_info in cleaned_data:
         # Change one_way_info to dictionary
         one_way_info = scraped_info["One-Way Info"]
-        airline_id = get_or_insert_id(cursor, "airlines", "airline_name", one_way_info[2], "airline_id")
+        airline_id = get_or_insert_id(cursor, "airlines", "airline_name", one_way_info["Airline"], "airline_id")
         try:
             if scraped_info["Departure Airplane Type"]:
                 departure_airplane_id = get_or_insert_id(cursor, "airplanes", "airplane_type", scraped_info["Departure Airplane Type"], "airplane_id")
                 arrival_airplane_id = get_or_insert_id(cursor, "airplanes", "airplane_type", scraped_info["Arrival Airplane Type"], "airplane_id")
         except KeyError:
             continue
-        departure_airport_id = get_or_insert_id(cursor, "airports", "airport_name", one_way_info[3], "airport_id", {"city": user_data[0]})
-        arrival_airport_id = get_or_insert_id(cursor, "airports", "airport_name", one_way_info[6], "airport_id", {"city": user_data[1]})
+        departure_airport_id = get_or_insert_id(cursor, "airports", "airport_name", one_way_info["Departure Airport"], "airport_id", {"city": user_data[0]})
+        arrival_airport_id = get_or_insert_id(cursor, "airports", "airport_name", one_way_info["Arrival Airport"], "airport_id", {"city": user_data[1]})
         
         roundtrip_id = None
         if user_data[-1]:
@@ -998,15 +1090,15 @@ def pipeline(cleaned_data, user_data):
         
         flight_id = insert_flight_features(cursor, one_way_info, flight_direction, airline_id, departure_airport_id, arrival_airport_id, departure_airplane_id, arrival_airplane_id, user_data, roundtrip_id)
         connection.commit()
-        if len(one_way_info) > 12 and int(one_way_info[1]) != 0:  # If there are layovers
-            if int(one_way_info[1]) == 1:
-                layover_airport_id = get_or_insert_id(cursor, 'airports', 'airport_name', one_way_info[12], 'airport_id', {'city': one_way_info[13]})
-                insert_layover(cursor, flight_id, layover_airport_id, one_way_info[11])
+        if len(one_way_info) > 12 and int(one_way_info["Number of Stops"]) != 0:  # If there are layovers
+            if int(one_way_info["Number of Stops"]) == 1:
+                layover_airport_id = get_or_insert_id(cursor, 'airports', 'airport_name', one_way_info["Layover Airport"], 'airport_id', {'city': one_way_info["Layover City"]})
+                insert_layover(cursor, flight_id, layover_airport_id, one_way_info["Layover Duration"])
                 connection.commit()
             else:
-                for _, layover_info in one_way_info[11].items():
-                    layover_airport_id = get_or_insert_id(cursor, 'airports', 'airport_name', layover_info[1], 'airport_id', {'city': layover_info[2]})
-                    insert_layover(cursor, flight_id, layover_airport_id, layover_info[0])
+                for _, layover_info in one_way_info["Layovers"].items():
+                    layover_airport_id = get_or_insert_id(cursor, 'airports', 'airport_name', layover_info["Layover Airport"], 'airport_id', {'city': layover_info["Layover City"]})
+                    insert_layover(cursor, flight_id, layover_airport_id, layover_info["Layover Duration"])
                     connection.commit()
 
     print("\n\tFinished.")
@@ -1020,7 +1112,7 @@ def createLog(element):
         format = "%(asctime)s:%(levelname)s:%(message)s",
         datefmt = "%m/%d/%Y %I:%M:%S %p",
     )
-    logging.debug(f"Log file created at this point {element}")
+    logging.warning(f"Log file created at this point {element}")
     
     
 def driver():
@@ -1035,8 +1127,8 @@ def driver():
     extractFlightInfo(doc)
     exit()
     '''
-    seating_class = "Business"
-    f = open("Progress.txt", "r")
+    seating_class = ["Economy", "Prem Econ", "Business", "First Class"]
+    f = open("/home/mahl/Senior-Capstone/scraper/Progress.txt", "r")
     cnt = int(f.read())
     cnt = cnt % 50
     print(cnt)
@@ -1057,32 +1149,33 @@ def driver():
     start = time.perf_counter()
     
     for capitals in state_caps[cnt:]:
-        tic = time.perf_counter()
-        cnt += 1
-        with open("Progress.txt", "w") as f:
+        with open("/home/mahl/Senior-Capstone/scraper/Progress.txt", "w") as f:
             f.write(f"{cnt}")
         f.close()
-        current_date = datetime.now().date()
-        URL = "https://www.google.com/travel/explore"
-        driver, wait = intialize(URL)
-        accessOriginDestination(wait, driver, "BWI ", f"{capitals} ")
-        access_Flights(driver)
-        changeRoundTrip(wait, driver, False)
-        accessSeatingClass(wait, driver, seating_class)
-        extraced_flight_info = retrieveFlightDetails(driver, wait, False)
-        
-        user_data = ["BWI", f"{capitals}", 1, 0, 0, 0, seating_class, current_date, False]
-        createLog(capitals)
-        pipeline(extraced_flight_info, user_data)
-        print("\nComplete.")
-        driver.close()
-        toc = time.perf_counter()
-        print(f"Time elapsed: {toc-tic}")
+        for s_class in seating_class:
+            tic = time.perf_counter()
+            cnt += 1
+            current_date = datetime.now().date()
+            URL = "https://www.google.com/travel/explore"
+            driver, wait = intialize(URL)
+            accessOriginDestination(wait, driver, "BWI ", f"{capitals} ")
+            access_Flights(driver)
+            changeRoundTrip(wait, driver, False)
+            accessSeatingClass(wait, driver, s_class)
+            extraced_flight_info = retrieveFlightDetails(driver, wait, False)
+            
+            user_data = ["BWI", f"{capitals}", 1, 0, 0, 0, s_class, current_date, False]
+            createLog(capitals)
+            pipeline(extraced_flight_info, user_data)
+            print("\nComplete.")
+            driver.close()
+            toc = time.perf_counter()
+            print(f"Time elapsed: {toc-tic}")
     
     stop = time.perf_counter()
     print(f"Overall Execution: {stop-start}")
     with open("Progress.txt", "w") as f:
-            f.write(0)
+            f.write("0")
     f.close()
     exit()
     '''Some User-centric Motion'''
