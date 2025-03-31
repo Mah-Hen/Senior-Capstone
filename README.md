@@ -13,10 +13,9 @@ A comprehensive project for web scraping flight data, PostgreSQL-based data stor
 - Project Structure
 - Usage
 - Running the Scraper
-- Database Setup
 - Future Front-End Integration
 - Contributing
-- License
+
 
 ## Project Overview
 
@@ -47,8 +46,8 @@ This capstone project uses a Python-based web scraper to collect and store struc
 1. Clone the repository:
 
 ```
-git clone https://github.com/your_username/your_project.git
-cd your_project
+git clone https://github.com/Mah-Hen/Senior-Capstone.git
+cd Senior-Capstone
 ```
 
 2. Install required Python packages:
@@ -94,19 +93,6 @@ cd scraper
 python scraper.py
 ```
 
-### Database Setup
-
-1. Execute the schema file to set up the database:
-
-```
-psql -U your_username -d your_database -f database/schema.sql
-```
-
-2. Verify the database connection by running the db_operations.py script:
-
-```
-python database/db_operations.py
-```
 
 ### Future Front-End Integration
 
