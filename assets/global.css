@@ -1,0 +1,3 @@
+#theme-wrapper, #theme-wrapper > div, #page-content, .dash-page-container {
+    background-color: inherit !important;
+}
