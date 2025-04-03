@@ -1,10 +1,9 @@
 import pandas as pd
-import psycopg2
+from pandas import json_normalize
 import os
 from sqlalchemy import create_engine
 from urllib.parse import quote_plus
 import numpy as np
-import re
 
 
 class FlightDataProcessor:
@@ -175,6 +174,7 @@ class FlightDataProcessor:
             inner join airplanes dplane on ff.departure_airplane_type_id=dplane.airplane_id 
             inner join airplanes aplane on ff.arrival_airplane_type_id=aplane.airplane_id;"""
         self._main_df = pd.read_sql(q, self.db_connect)
+        return self._main_df
 
     def process_main_data(self):
         if self._main_df is None:
@@ -375,142 +375,44 @@ class FlightDataProcessor:
         self._main_df = self._main_df.dropna(subset=["departure_airport"])
 
     def process_user_data(self, dict):
-        # Extract the hour and minute from the layover duration
-        self._main_df["Duration_Hour"] = (
-            self._main_df["travel_duration"]
-            .str.extract(r"(\d+) hr")
-            .fillna(0)
-            .astype(int)
+        processed_data = []
+        self._user_df = json_normalize(
+            dict, sep="_", meta=["Departure Airplane Type", "Arrival Airplane Type"]
         )
-        self._main_df["Duration_Min"] = (
-            self._main_df["travel_duration"]
-            .str.extract(r"(\d+) min")
-            .fillna(0)
-            .astype(int)
+        self._user_df[["Departure Airplane Type", "Arrival Airplane Type"]] = (
+            self._user_df[["Departure Airplane Type", "Arrival Airplane Type"]].fillna(
+                "Unknown"
+            )
         )
+
+        print(self._user_df.columns)
+        """
+        'Departure Airplane Type', 'Arrival Airplane Type',
+       'One-Way Info_Price', 'One-Way Info_Number of Stops',
+       'One-Way Info_Airline', 'One-Way Info_Departure Airport',
+       'One-Way Info_Departure Time', 'One-Way Info_Departure Date',
+       'One-Way Info_Arrival Airport', 'One-Way Info_Arrival Time',
+       'One-Way Info_Arrival Date', 'One-Way Info_Number of Carry-On Bags',
+       'One-Way Info_Number of Checked Bags', 'One-Way Info_Layover Duration',
+       'One-Way Info_Layover Airport', 'One-Way Info_Layover City',
+       'One-Way Info_Total Duration'
+        """
         # Extract Day and Month from dates
-        self._main_df["search_date"] = pd.to_datetime(self._main_df["search_date"])
-        departure_dates = self._main_df["departure_date"].str.extract(
-            r", (?P<month>\w+) (?P<day>\d+)"
-        )
-        departure_dates["month"] = departure_dates["month"].map(
-            lambda x: self.months.index(x) + 1
-        )
-        departure_dates["year"] = 2025
-        self._main_df["departure_date"] = pd.to_datetime(
-            departure_dates[["year", "month", "day"]]
-        )
+        self._user_df["search_date"] = pd.to_datetime(self._user_df["search_date"])
+        self._user_df["depart_date"] = pd.to_datetime(self._user_df["depart_date"])
+        # self._user_df["return_date"] = pd.to_datetime(self._user_df["return_date"])
         # Days between from Search Date and Departure Date
-        self._main_df["Days_Between"] = (
-            self._main_df["departure_date"] - self._main_df["search_date"]
+        self._user_df["Days_Between"] = (
+            self._user_df["depart_date"] - self._user_df["search_date"]
         ).dt.days
-
-        # Add Travel Duration # Add Travel Duration Label
-        self._main_df["Duration_Label"] = np.where(
-            (self._main_df["Duration_Hour"] >= 3)
-            & (self._main_df["Duration_Hour"] < 6),
-            "Medium",
-            np.where(
-                (self._main_df["Duration_Hour"] >= 6)
-                & (self._main_df["Duration_Hour"] < 12),
-                "Long",
-                "Ultra-Long",
-            ),
-        )  # Add Travel Duration Label
-        self._main_df["Duration_Label"] = np.where(
-            (self._main_df["Duration_Hour"] >= 3)
-            & (self._main_df["Duration_Hour"] < 6),
-            "Medium",
-            np.where(
-                (self._main_df["Duration_Hour"] >= 6)
-                & (self._main_df["Duration_Hour"] < 12),
-                "Long",
-                "Ultra-Long",
-            ),
-        )
-        self._main_df["Duration_Label"] = np.where(
-            (self._main_df["Duration_Hour"] >= 3)
-            & (self._main_df["Duration_Hour"] < 6),
-            "Medium",
-            np.where(
-                (self._main_df["Duration_Hour"] >= 6)
-                & (self._main_df["Duration_Hour"] < 12),
-                "Long",
-                "Ultra-Long",
-            ),
-        )
-
-        # Add Layover Label
-        self._main_df["Layover_Label"] = np.where(
-            self._main_df["num_layovers"] == 0, "Direct", "Layover"
-        )
-
-        # Add Departure Morning/Afternoon/Evening/Night Flight
-        self._main_df["Departure_Time"] = pd.to_datetime(
-            self._main_df["departure_time"], format="%H:%M:%S"
-        )
-        self._main_df["Departure_Hour"] = self._main_df["Departure_Time"].dt.hour
-        self._main_df["Departure_AMPM"] = np.where(
-            self._main_df["Departure_Hour"] < 12, "AM", "PM"
-        )
-        self._main_df["Departure_Time_Label"] = np.where(
-            (self._main_df["Departure_Hour"] >= 6)
-            & (self._main_df["Departure_Hour"] < 12),
-            "Morning",
-            np.where(
-                (self._main_df["Departure_Hour"] >= 12)
-                & (self._main_df["Departure_Hour"] < 18),
-                "Afternoon",
-                np.where(
-                    (self._main_df["Departure_Hour"] >= 18)
-                    & (self._main_df["Departure_Hour"] < 24),
-                    "Evening",
-                    "Night",
-                ),
-            ),
-        )
-
-        # Add Arrival Morning/Afternoon/Evening/Night Flight
-        self._main_df["Arrival_Time"] = pd.to_datetime(
-            self._main_df["arrival_time"], format="%H:%M:%S"
-        )
-        self._main_df["Arrival_Hour"] = self._main_df["Arrival_Time"].dt.hour
-        self._main_df["Arrival_AMPM"] = np.where(
-            self._main_df["Arrival_Hour"] < 12, "AM", "PM"
-        )
-        self._main_df["Arrival_Time_Label"] = np.where(
-            (self._main_df["Arrival_Hour"] >= 6) & (self._main_df["Arrival_Hour"] < 12),
-            "Morning",
-            np.where(
-                (self._main_df["Arrival_Hour"] >= 12)
-                & (self._main_df["Arrival_Hour"] < 17),
-                "Afternoon",
-                np.where(
-                    (self._main_df["Arrival_Hour"] >= 17)
-                    & (self._main_df["Arrival_Hour"] < 21),
-                    "Evening",
-                    "Night",
-                ),
-            ),
-        )
+        print(self._user_df.head())
 
         # Extract extra time components
-        self._main_df["Search_Day"] = self._main_df["search_date"].dt.day
-        self._main_df["Search_Month"] = self._main_df["search_date"].dt.month
-        self._main_df["Departure_Day"] = self._main_df["departure_date"].dt.day
-        self._main_df["Departure_Month"] = self._main_df["departure_date"].dt.month
-        self._main_df["arrival_date"] = self._main_df["arrival_date"].astype("string")
-        self._main_df["Arrival_Day"] = self._main_df["arrival_date"].str.extract(
-            r"\w+ (\d+)"
-        )
-        self._main_df["Arrival_Month"] = (
-            self._main_df["arrival_date"]
-            .str.extract(r", (\w+)")
-            .map(lambda x: self.months.index(x) + 1)
-        )
+        self._user_df["Search_Month"] = self._user_df["search_date"].dt.month
+        self._user_df["Departure_Month"] = self._user_df["depart_date"].dt.month
 
         # Add Region column
-        self._main_df["Departure_Region"] = self._main_df["departure_city"].apply(
+        self._user_df["Departure_Region"] = self._user_df["departure"].apply(
             lambda x: (
                 "North"
                 if x in set(self.north)
@@ -521,7 +423,7 @@ class FlightDataProcessor:
                 )
             )
         )
-        self._main_df["Arrival_Region"] = self._main_df["arrival_city"].apply(
+        self._user_df["Arrival_Region"] = self._user_df["arrival"].apply(
             lambda x: (
                 "North"
                 if x in set(self.north)
@@ -534,18 +436,7 @@ class FlightDataProcessor:
         )
 
         # Add Season column
-        self._main_df["Departure_Season"] = self._main_df["Departure_Month"].apply(
-            lambda x: (
-                "Winter"
-                if x in [12, 1, 2]
-                else (
-                    "Spring"
-                    if x in [3, 4, 5]
-                    else "Summer" if x in [6, 7, 8] else "Fall"
-                )
-            )
-        )
-        self._main_df["Arrival_Season"] = self._main_df["Arrival_Month"].apply(
+        self._user_df["Departure_Season"] = self._user_df["Departure_Month"].apply(
             lambda x: (
                 "Winter"
                 if x in [12, 1, 2]
@@ -557,16 +448,10 @@ class FlightDataProcessor:
             )
         )
 
-        self._main_df["seating_class"] = self._main_df["seating_class"]
-        vals = ["1", "0", "Unknown"]
-        self._main_df["airline_name"] = self._main_df["airline_name"][
-            self._main_df.airline_name.isin(vals) == False
-        ]
+        print(self._user_df.head())
 
-        self._main_df["departure_airport"] = self._main_df["departure_airport"][
-            self._main_df.departure_airport.isin(["0", "2"]) == False
-        ]
-        self._main_df = self._main_df.dropna(subset=["departure_airport"])
+    def retrieve_user_data(self):
+        pass
 
     def get_processed_layover_data(self):
         if self._layover_df is None:
@@ -578,14 +463,14 @@ class FlightDataProcessor:
             self.process_main_data()
         return self._main_df
 
-    def get_processed_user_data(self):
+    def get_processed_user_data(self, dict):
         if self._user_df is None:
-            self.process_user_data()
+            self.process_user_data(dict)
         return self._user_df
 
 
 if __name__ == "__main__":
     data = FlightDataProcessor()
-    data = data.get_processed_user_data()
-
+    data = data.get_processed_main_data()
     print(data.columns)
+    # print(data.columns)

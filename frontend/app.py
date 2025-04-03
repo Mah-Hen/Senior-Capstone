@@ -23,6 +23,7 @@ colors = {
 
 # Intialize the app
 app = Dash(__name__, use_pages=True, external_stylesheets=[dbc.themes.FLATLY])
+image_path = app.get_asset_url("flight_logo.png")
 
 
 # Custom navigatition card
@@ -68,10 +69,24 @@ app.layout = html.Div(
             },
             children=[
                 html.Div(
+                    html.Img(
+                        src=app.get_asset_url("flight_logo.png"),  # Use this method
+                        style={
+                            "position": "absolute",
+                            "top": "10px",
+                            "left": "10px",
+                            "maxWidth": "10%",
+                            "height": "auto",
+                            "display": "block",  # Ensures proper alignment
+                        },
+                    ),
+                    style={"textAlign": "center"},
+                ),
+                html.Div(
                     style={"textAlign": "center"},
                     children=[
                         html.H1(
-                            "MaxyMal: Flight Insights Pro",
+                            "MaxyMal: Domestic Flights Insights Pro",
                             className="primary-center-header",
                             style={
                                 "color": colors[
@@ -116,7 +131,7 @@ app.layout = html.Div(
                         dash.page_container,
                     ],
                     className="container",
-                )
+                ),
             ],
         ),
     ]

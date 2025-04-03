@@ -1,20 +1,47 @@
 from dash import Dash, html, dcc, callback, Output, Input, State
 import dash
 import time
-from datetime import date
+from datetime import date, datetime
 import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from data_processing import FlightDataProcessor
 from flight_predictor import FlightPredictionModel
+from scraper import userControl
 
 # Get current and future dates
+months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+]
+months_30 = ["April", "June", "September", "November"]
+months_31 = ["January", "March", "May", "July", "August", "October", "December"]
+
+
 current_time = time.localtime()
-year, month, day = current_time.tm_year, current_time.tm_mon, current_time.tm_mday
+max_day = 0
+year, month, min_day = current_time.tm_year, current_time.tm_mon, current_time.tm_mday
+max_day = min_day
 new_month = month + 6
 new_year = year if new_month <= 12 else year + 1
 new_month = new_month if new_month <= 12 else new_month - 12
+if months[new_month - 1] in months_30:
+    if max_day == 31:
+        max_day = 30
+elif months[new_month - 1] == "February":
+    if max_day > 28:
+        max_day = 28
 
 # Color scheme
 colors = {
@@ -25,7 +52,7 @@ colors = {
 }
 
 # Seating class options
-SEATING_CLASSES = ["Economy", "Premium Economy", "Business", "First Class"]
+SEATING_CLASSES = ["Economy", "Prem Econ", "Business", "First Class"]
 
 layout = html.Div(
     children=[
@@ -36,32 +63,23 @@ layout = html.Div(
         dcc.Input(
             id="input_departure",
             type="text",
-            placeholder="Departure Airport",
+            placeholder="Departure City",
             style={"margin": "10px", "color": colors["secondary_text"]},
         ),
         dcc.Input(
             id="input_arrival",
             type="text",
-            placeholder="Arrival Airport",
+            placeholder="Arrival City",
             style={"margin": "10px", "color": colors["secondary_text"]},
         ),
         # Date Pickers
         dcc.DatePickerSingle(
             id="depart-date-picker",
             clearable=True,
-            min_date_allowed=date(year, month, day),
-            max_date_allowed=date(new_year, new_month, day),
+            min_date_allowed=date(year, month, min_day),
+            max_date_allowed=date(new_year, new_month, max_day),
             month_format="MMMM Y",
             placeholder="Depart Date",
-            style={"fontSize": "18px", "width": "280px"},
-        ),
-        dcc.DatePickerSingle(
-            id="return-date-picker",
-            clearable=True,
-            min_date_allowed=date(year, month, day),
-            max_date_allowed=date(new_year, new_month, day),
-            month_format="MMMM Y",
-            placeholder="Return Date",
             style={"fontSize": "18px", "width": "280px"},
         ),
         html.Div(
@@ -77,7 +95,7 @@ layout = html.Div(
                         "width": "300px",
                         "marginTop": "10px",
                         "color": colors["secondary_text"],
-                        "margin": "20px",
+                        "margin": "5px",
                     },
                 ),
                 style={
@@ -93,6 +111,7 @@ layout = html.Div(
             id="submit-button",
             n_clicks=0,
             style={"marginTop": "20px"},
+            className="btn-outline-light",
         ),
         # Output display
         html.Div(
@@ -111,13 +130,10 @@ layout = html.Div(
     State("input_departure", "value"),
     State("input_arrival", "value"),
     State("depart-date-picker", "date"),
-    State("return-date-picker", "date"),
     State("class-dropdown", "value"),
     prevent_initial_call=True,  # Enures nothing is ran until clicked button
 )
-def handle_submission(
-    n_clicks, departure, arrival, depart_date, return_date, seat_class
-):
+def handle_submission(n_clicks, departure, arrival, depart_date, seat_class):
     if not departure or not arrival or not depart_date or not seat_class:
         return "Please fill in all required fields."
 
@@ -126,11 +142,18 @@ def handle_submission(
         "departure": departure,
         "arrival": arrival,
         "depart_date": depart_date,
-        "return_date": return_date,
+        # "return_date": return_date,
         "seat_class": seat_class,
+        "search_date": datetime.now().date(),
+        "roundtrip": False,
     }
-    processed_data = FlightDataProcessor()
-    processed_data = processed_data.process_user_data(user_input)
+    Processor = FlightDataProcessor()
+    user_data = userControl(user_input)
+    user_data = Processor.get_processed_user_data(user_data)
+
+    # Now we're at the point of predicting the user_input.
+    # Call the prediction_model class and pre_process the user data
+    # From there we'll start to connect the
     return f"Searching flights from {departure} to {arrival} on {depart_date}. Seating Class: {seat_class}."
 
 

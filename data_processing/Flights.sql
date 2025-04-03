@@ -61,6 +61,7 @@ CREATE TABLE layovers(
 
 --DROP DATABASE Flights;
 --DROP TABLE flight_features CASCADE;
+
 SELECT * FROM flight_features;
 
 /* Data from scraping the flight status is */
