@@ -89,9 +89,7 @@ app.layout = html.Div(
                             "MaxyMal: Domestic Flights Insights Pro",
                             className="primary-center-header",
                             style={
-                                "color": colors[
-                                    "primary_accent"
-                                ],  # colors["primary_accent"],
+                                "color": colors["primary_accent"],
                                 "fontSize": "2.5rem",
                                 "marginBottom": "1rem",
                             },

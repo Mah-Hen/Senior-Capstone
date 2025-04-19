@@ -47,7 +47,7 @@ elif months[new_month - 1] == "February":
 
 # Color scheme
 colors = {
-    "background": "#0A0A0A",
+    "background": "#242124",
     "surface": "#1A1A1A",
     "main_text": "#F0F0F0",
     "secondary_text": "#888888",
@@ -178,8 +178,13 @@ layout = (
                                         "marginTop": "20px",
                                         "width": "100%",  # Ensures the table takes full width
                                         "overflowX": "auto",  # Adjusts height automatically
+                                        "color": "#666699",
                                     },
-                                )
+                                ),
+                                html.Div(
+                                    id="flight-link-container",
+                                    style={"marginTop": "20px", "textAlign": "center"},
+                                ),
                             ],
                             overlay_style={
                                 "visibility": "hidden",
@@ -206,12 +211,14 @@ layout = (
 # Callback to update output based on user selection
 @callback(
     Output("output-display", "children"),
+    Output("flight-link-container", "children"),
     Input("submit-button", "n_clicks"),
     State("input_departure", "value"),
     State("input_arrival", "value"),
     State("depart-date-picker", "date"),
     State("class-dropdown", "value"),
     prevent_initial_call=True,  # Enures nothing is ran until clicked button
+    suppress_callback_exceptions=True,
 )
 def handle_submission(n_clicks, departure, arrival, depart_date, seat_class):
     if not departure or not arrival or not depart_date or not seat_class:
@@ -228,11 +235,33 @@ def handle_submission(n_clicks, departure, arrival, depart_date, seat_class):
         "roundtrip": False,
     }
     Processor = FlightDataProcessor()
-    user_data = userControl(user_input)
-    query_results = Processor.get_processed_user_data(user_input, user_data)
-    if query_results.empty:
+    try:
+        user_data = userControl(user_input)
+        query_page = user_data[-1]
+        query_results = Processor.get_processed_user_data(user_input, user_data)
+        info_button = [
+            dbc.Button(
+                "For More Information",
+                href=query_page,
+                target="_blank",
+                color="primary",
+                className="btn-outline-light",
+                style={
+                    "marginTop": "10px",
+                    "fontWeight": "bold",
+                    "boxShadow": "0 4px 6px rgba(0,0,0,0.2)",
+                },
+            ),
+        ]
+        if query_results.empty:
+            return html.Div(
+                "⚠️ No results found. Please try different search criteria.",
+                style={"color": colors["error_color"]},
+            )
+    except Exception as e:
+        print(f"Error during flight search: {e}")  # reminder to log this
         return html.Div(
-            "⚠️ No results found. Please try different search criteria.",
+            "⚠️ An error occurred while processing your request.",
             style={"color": colors["error_color"]},
         )
 
@@ -248,9 +277,9 @@ def handle_submission(n_clicks, departure, arrival, depart_date, seat_class):
                         "Arrival Date",
                         "# Stops",
                     ],
-                    fill_color="#3F51B5",
+                    fill_color="#888888",
                     align="left",
-                    font=dict(color=colors["main_text"]),
+                    font=dict(color="#0A0A0A"),
                 ),
                 cells=dict(
                     values=[
@@ -258,22 +287,28 @@ def handle_submission(n_clicks, departure, arrival, depart_date, seat_class):
                         query_results["Price"],
                         query_results["Airline"],
                         query_results["Formatted Departure Date"],
-                        query_results["Arrival Date"],
+                        query_results["Formatted Arrival Date"],
                         query_results["Number of Stops"],
                     ],
                     fill_color="#F5F5F5",
                     align="left",
-                    font=dict(color="#ECEFF1"),
+                    font=dict(color="#0A0A0A"),
                 ),
             )
         ]
+    )
+    # Set the background color of the graph
+    fig.update_layout(
+        paper_bgcolor="#F5F5F5",  # Background color outside the plot
+        # plot_bgcolor=colors["plot_bgcolor"],   # Background color inside the plot
     )
 
     # Now we're at the point of predicting the user_input.
     # Call the prediction_model class and pre_process the user data
     # From there we'll start to connect the
-    return dcc.Graph(
-        figure=fig
+    return (
+        dcc.Graph(figure=fig),
+        info_button,
     )  # f"Searching flights from {departure} to {arrival} on {depart_date}. Seating Class: {seat_class}."
 
 

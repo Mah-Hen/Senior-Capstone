@@ -1,6 +1,4 @@
-- Display Search query Results
 - Implement ML
-- Fix up visual graphs make more visually appealing and interactive. Look at some templates
+- Fix up visual graphs make more visually appealing and interactive. Look at some templates. Allow further filtering according to graph type. 
 - Fix up front-end visuals
-- Do research on the Line Graph
 - Finally, do a server/client with rasberry pi to launch website onto pythonanywhere. Reason why is the scraping_script is too much.

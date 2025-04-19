@@ -79,13 +79,31 @@ chart_options = {
         {"label": "Number of Stops", "value": "num_stops"},
         {"label": "Departure Hour", "value": "Departure_Hour"},
     ],
-    "Scat Plot": [{"label": "Airline", "value": "airline_name"}],
-    "Line": [{"label": "Airline", "value": "airline_name"}],
+    "Scat Plot": [
+        {"label": "Airline", "value": "airline_name"},
+        {"label": "Arrival Region", "value": "Arrival_Region"},
+        {"label": "Departure Time", "value": "Departure_Time_Label"},
+        {"label": "Arrival Time", "value": "Arrival_Time_Label"},
+        {"label": "Departure Season", "value": "Departure_Season"},
+        {"label": "Arrival Season", "value": "Arrival_Season"},
+        {"label": "Seating Class", "value": "seating_class"},
+        {"label": "# of Stops", "value": "num_stops"},
+    ],
+    "Line": [
+        {"label": "Duration Hour", "value": "Duration_Hour"},
+        {"label": "Days Between", "value": "Days_Between"},
+        {"label": "Departure Hour", "value": "Departure_Hour"},
+        {"label": "Arrival Hour", "value": "Arrival_Hour"},
+        {"label": "Departure Month", "value": "Departure_Month"},
+        {"label": "Search Month", "value": "Search_Month"},
+        {"label": "Arrival Month", "value": "Arrival_Month"},
+        {"label": "# of Stops", "value": "num_stops"},
+    ],
 }
 
 # Color scheme
 colors = {
-    "background": "#0A0A0A",
+    "background": "#242124",
     "surface": "#1A1A1A",
     "main_text": "#F0F0F0",
     "secondary_text": "#888888",
@@ -336,7 +354,12 @@ def update_subheader_title(theme):
     suppress_callback_exceptions=True,
 )
 def set_dropdown_values(selected_feature):
-    return chart_options[selected_feature]  # Return the OG list of option dictionaries
+    try:
+        return chart_options[
+            selected_feature
+        ]  # Return the OG list of option dictionaries
+    except KeyError:
+        return []
 
 
 @callback(
@@ -384,18 +407,26 @@ def update_graph(graph_type, feature_chosen):
             title=f"Average Flight Price by {feature_chosen.replace('_', ' ')}"
         )
 
-    elif graph_type == "Scatter Plot":
+    elif graph_type == "Scat Plot":
+        df = (
+            main_data.groupby(["Departure_Month", feature_chosen])["flight_price"]
+            .mean()
+            .reset_index()
+        )
         fig = px.scatter(
-            main_data,
+            df,
             x="Departure_Month",
             y="flight_price",
             color=feature_chosen,
-            symbol=feature_chosen,
+            # symbol=feature_chosen,
         )
+        fig.update_layout(scattermode="group")
 
     elif graph_type == "Line":
-        fig = px.line(main_data, x="date", y="GOOG")
-
+        df = main_data.groupby(feature_chosen)["flight_price"].mean().reset_index()
+        fig = px.line(df, x=feature_chosen, y="flight_price")
+        fig.update_traces(mode="lines+markers")
+        fig.update_layout(title=f"Average Price by {feature_chosen.replace('_', ' ')}")
     else:
         fig = px.area(
             main_data,

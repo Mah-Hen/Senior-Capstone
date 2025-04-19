@@ -1,3 +1,7 @@
 #theme-wrapper, #theme-wrapper > div, #page-content, .dash-page-container {
     background-color: inherit !important;
 }
+.dash-spinner {
+    border-top-color: #00FFE0 !important;
+    border-right-color: #666699 !important;
+}

@@ -1183,8 +1183,7 @@ def clean_data(data):
                 layover_duration = re.search(r"(\d+ min)", data[-2])
                 if layover_duration is None:
                     layover_duration = re.search(r"(\d+ hr)", data[-2])
-                else:
-                    layover_duration = "0 hr "
+
             cleaned_data["Layover Duration"] = layover_duration.group(1)
             print(layover_duration.group(1))
 
@@ -1585,6 +1584,7 @@ def userControl(dict):
 
     # Retrieve flight details
     extracted_flight_info = retrieveFlightDetails(driver, wait, round_trip)
+    extracted_flight_info[-1] = driver.current_url
 
     # Store the data in the database
     # pipeline(extracted_flight_info, user_data)

@@ -121,6 +121,60 @@ class FlightDataProcessor:
 
         return north, south, west, east
 
+    def get_state_abbreviation(self, city):
+        city_to_state = {
+            "Augusta": "ME",
+            "Boston": "MA",
+            "Concord": "NH",
+            "Montpelier": "VT",
+            "Albany": "NY",
+            "Hartford": "CT",
+            "Providence": "RI",
+            "Columbus": "OH",
+            "Lansing": "MI",
+            "Madison": "WI",
+            "Saint Paul": "MN",
+            "Bismarck": "ND",
+            "Pierre": "SD",
+            "Helena": "MT",
+            "Richmond": "VA",
+            "Charleston": "WV",
+            "Raleigh": "NC",
+            "Baltimore": "MD",
+            "Washington": "DC",
+            "Philadelphia": "PA",
+            "Newark": "NJ",
+            "New York": "NY",
+            "Trenton": "NJ",
+            "Dover": "DE",
+            "Harrisburg": "PA",
+            "Montgomery": "AL",
+            "Little Rock": "AR",
+            "Tallahassee": "FL",
+            "Atlanta": "GA",
+            "Jackson": "MS",
+            "Baton Rouge": "LA",
+            "Columbia": "SC",
+            "Nashville": "TN",
+            "Austin": "TX",
+            "Oklahoma City": "OK",
+            "Frankfort": "KY",
+            "Phoenix": "AZ",
+            "Sacramento": "CA",
+            "Denver": "CO",
+            "Honolulu": "HI",
+            "Boise": "ID",
+            "Jefferson City": "MO",
+            "Carson City": "NV",
+            "Santa Fe": "NM",
+            "Salt Lake City": "UT",
+            "Olympia": "WA",
+            "Cheyenne": "WY",
+            "Salem": "OR",
+        }
+
+        return city_to_state.get(city, "NA")  # Return 'NA' if not found
+
     def fetch_layover_data(self):
         # Read the data from the database
         q = """select l.layover_duration, a.airport_name, a.city
@@ -381,6 +435,12 @@ class FlightDataProcessor:
             self._main_df.departure_airport.isin(["0", "2"]) == False
         ]
         self._main_df = self._main_df.dropna(subset=["departure_airport"])
+        self._main_df["Arrival_State"] = self._main_df["arrival_city"].apply(
+            lambda x: self.get_state_abbreviation(x)
+        )
+        self._main_df["Departure_State"] = self._main_df["departure_city"].apply(
+            lambda x: self.get_state_abbreviation(x)
+        )
 
     def process_user_data(self, user_dict, data_dict):
         """
@@ -407,6 +467,7 @@ class FlightDataProcessor:
         self._user_df["Search Date"] = [user_dict["search_date"]] * len(self._user_df)
         print(self._user_df.columns)
 
+        # Error here when individuals search for flights not in the year 2025
         self._user_df.loc[
             self._user_df["Departure Date"] != "Unknown", "Departure Date"
         ] = (
@@ -429,6 +490,9 @@ class FlightDataProcessor:
        'One-Way Info_Total Duration'
         """
         # Extract Day and Month from dates
+        self._user_df["Arrival Date"] = self._user_df["Arrival Date"].replace(
+            "Unknown", pd.NA
+        )
         self._user_df["Search Date"] = pd.to_datetime(
             self._user_df["Search Date"], format="%Y-%m-%d"
         )
@@ -462,6 +526,9 @@ class FlightDataProcessor:
         # Format separately
         self._user_df["Formatted Departure Date"] = self._user_df[
             "Departure Date"
+        ].dt.strftime("%A, %B %d %Y")
+        self._user_df["Formatted Arrival Date"] = self._user_df[
+            "Arrival Date"
         ].dt.strftime("%A, %B %d %Y")
 
         print(self._user_df.head())
@@ -501,8 +568,10 @@ class FlightDataProcessor:
                 )
             )
         )
+
+        self._user_df = self._user_df.dropna(subset=["Price"])
         self._user_df["Price"] = self._user_df["Price"].astype(int)
-        print(self._user_df.head())
+        print(self._user_df["Formatted Departure Date"].head())
 
     def retrieve_user_data(self):
         pass
