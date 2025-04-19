@@ -9,7 +9,7 @@ colors = {
     "surface": "#1A1A1A",
     "main_text": "#F0F0F0",
     "secondary_text": "#888888",
-    "primary_accent": "#00FFE0",
+    "primary_accent": "#666699",
     "secondary_accent": "#FF00FF",
     "tertiary_accent": "#CCFF00",
     "borders": "#4A4A4A",
@@ -172,3 +172,10 @@ def toggle_theme(theme):
 # Run the app
 if __name__ == "__main__":
     app.run(debug=True)
+
+    """
+    Not gon lie, in order for you to put this website on the internet, you need to use a hosting service.
+    One that you can use for free is pythonanywhere.com
+    However, you need separate the backend and frontend.
+    Where the backend is on a server/local machine and the frontend is on the hosting service.
+    """

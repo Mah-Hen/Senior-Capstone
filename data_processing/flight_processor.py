@@ -75,6 +75,14 @@ class FlightDataProcessor:
             "Richmond",
             "Charleston",
             "Raleigh",
+            "Baltimore",
+            "Washington",
+            "Philadelphia",
+            "Newark",
+            "New York",
+            "Trenton",
+            "Dover",
+            "Harrisburg",
         ]
 
         # Southern Region
@@ -362,8 +370,8 @@ class FlightDataProcessor:
                 )
             )
         )
-
-        self._main_df["seating_class"] = self._main_df["seating_class"]
+        seat_class = ["prem econ"]
+        self._main_df = self._main_df[~self._main_df["seating_class"].isin(seat_class)]
         vals = ["1", "0", "Unknown"]
         self._main_df["airline_name"] = self._main_df["airline_name"][
             self._main_df.airline_name.isin(vals) == False
@@ -374,18 +382,41 @@ class FlightDataProcessor:
         ]
         self._main_df = self._main_df.dropna(subset=["departure_airport"])
 
-    def process_user_data(self, dict):
-        processed_data = []
-        self._user_df = json_normalize(
-            dict, sep="_", meta=["Departure Airplane Type", "Arrival Airplane Type"]
-        )
+    def process_user_data(self, user_dict, data_dict):
+        """
+        user_input = {
+                "departure": departure,
+                "arrival": arrival,
+                "depart_date": depart_date,
+                # "return_date": return_date,
+                "seat_class": seat_class,
+                "search_date": datetime.now().date(),
+                "roundtrip": False,
+            }
+        """
+
+        self._user_df = json_normalize(data_dict, sep="_")
         self._user_df[["Departure Airplane Type", "Arrival Airplane Type"]] = (
             self._user_df[["Departure Airplane Type", "Arrival Airplane Type"]].fillna(
                 "Unknown"
             )
         )
-
+        self._user_df.columns = self._user_df.columns.str.replace(
+            "One-Way Info_", "", regex=False
+        )
+        self._user_df["Search Date"] = [user_dict["search_date"]] * len(self._user_df)
         print(self._user_df.columns)
+
+        self._user_df.loc[
+            self._user_df["Departure Date"] != "Unknown", "Departure Date"
+        ] = (
+            self._user_df.loc[
+                self._user_df["Departure Date"] != "Unknown", "Departure Date"
+            ].astype(str)
+            + ", 2025"
+        )
+        print(self._user_df["Departure Date"])
+
         """
         'Departure Airplane Type', 'Arrival Airplane Type',
        'One-Way Info_Price', 'One-Way Info_Number of Stops',
@@ -398,45 +429,68 @@ class FlightDataProcessor:
        'One-Way Info_Total Duration'
         """
         # Extract Day and Month from dates
-        self._user_df["search_date"] = pd.to_datetime(self._user_df["search_date"])
-        self._user_df["depart_date"] = pd.to_datetime(self._user_df["depart_date"])
+        self._user_df["Search Date"] = pd.to_datetime(
+            self._user_df["Search Date"], format="%Y-%m-%d"
+        )
+
+        self._user_df.loc[
+            self._user_df["Departure Date"] != "Unknown", "Departure Date"
+        ] = pd.to_datetime(
+            self._user_df.loc[
+                self._user_df["Departure Date"] != "Unknown", "Departure Date"
+            ],
+            format="%A, %B %d, %Y",
+            errors="coerce",
+        )
+        self._user_df["Departure Date"] = pd.to_datetime(
+            self._user_df["Departure Date"], errors="coerce"
+        )
+
         # self._user_df["return_date"] = pd.to_datetime(self._user_df["return_date"])
         # Days between from Search Date and Departure Date
-        self._user_df["Days_Between"] = (
-            self._user_df["depart_date"] - self._user_df["search_date"]
-        ).dt.days
+        valid_mask = (
+            self._user_df["Departure Date"].notna()
+            & self._user_df["Search Date"].notna()
+        )
+        self._user_df["Days Between"] = pd.NA
+        if valid_mask.any():
+            self._user_df["Days Between"] = (
+                self._user_df.loc[valid_mask, "Departure Date"]
+                - self._user_df.loc[valid_mask, "Search Date"]
+            ).dt.days
+
+        # Format separately
+        self._user_df["Formatted Departure Date"] = self._user_df[
+            "Departure Date"
+        ].dt.strftime("%A, %B %d %Y")
+
         print(self._user_df.head())
 
         # Extract extra time components
-        self._user_df["Search_Month"] = self._user_df["search_date"].dt.month
-        self._user_df["Departure_Month"] = self._user_df["depart_date"].dt.month
+        self._user_df["Search Month"] = self._user_df["Search Date"].dt.month
+        self._user_df["Departure Month"] = self._user_df["Departure Date"].dt.month
 
         # Add Region column
-        self._user_df["Departure_Region"] = self._user_df["departure"].apply(
-            lambda x: (
-                "North"
-                if x in set(self.north)
-                else (
-                    "South"
-                    if x in set(self.south)
-                    else "West" if x in set(self.west) else "East"
-                )
-            )
-        )
-        self._user_df["Arrival_Region"] = self._user_df["arrival"].apply(
-            lambda x: (
-                "North"
-                if x in set(self.north)
-                else (
-                    "South"
-                    if x in set(self.south)
-                    else "West" if x in set(self.west) else "East"
-                )
-            )
-        )
+        if user_dict["departure"] in set(self.north):
+            self._user_df["Departure Region"] = "North"
+        elif user_dict["departure"] in set(self.south):
+            self._user_df["Departure Region"] = "South"
+        elif user_dict["departure"] in set(self.west):
+            self._user_df["Departure Region"] = "West"
+        elif user_dict["departure"] in set(self.east):
+            self._user_df["Departure Region"] = "East"
+
+        if user_dict["arrival"] in set(self.north):
+            self._user_df["Arrival Region"] = "North"
+        elif user_dict["arrival"] in set(self.south):
+            self._user_df["Arrival Region"] = "South"
+        elif user_dict["arrival"] in set(self.west):
+            self._user_df["Arrival Region"] = "West"
+        elif user_dict["arrival"] in set(self.east):
+            self._user_df["Arrival Region"] = "East"
 
         # Add Season column
-        self._user_df["Departure_Season"] = self._user_df["Departure_Month"].apply(
+        self._user_df["Departure Season"] = self._user_df["Departure Month"].apply(
             lambda x: (
                 "Winter"
                 if x in [12, 1, 2]
@@ -447,7 +501,7 @@ class FlightDataProcessor:
                 )
             )
         )
-
+        self._user_df["Price"] = self._user_df["Price"].astype(int)
         print(self._user_df.head())
 
     def retrieve_user_data(self):
@@ -463,14 +517,40 @@ class FlightDataProcessor:
             self.process_main_data()
         return self._main_df
 
-    def get_processed_user_data(self, dict):
+    def get_processed_user_data(self, user_dict, data_dict):
+        top_cheap_flights = pd.DataFrame()
         if self._user_df is None:
-            self.process_user_data(dict)
-        return self._user_df
+            self.process_user_data(user_dict, data_dict)
+            top_cheap_flights = self.getCheapFlights()
+        return top_cheap_flights
+
+    def get_user_stats(self, dict):
+        self._user_df = self.get_processed_user_data(dict)
+        low_flight_price = {}
+        high_flight_price = {}
+        user_data = []
+
+        return user_data
+
+    def getCheapFlights(self):
+        # Check if 'Departure Date' or 'Arrival Date' column does not equal 'Unknown'
+        valid_mask = (
+            self._user_df["Departure Date"].notna()
+            & self._user_df["Search Date"].notna()
+        )
+        if valid_mask.any():
+            # Filter the DataFrame to get the cheapest flights
+            cheapest_flights = self._user_df.nsmallest(5, "Price", "first")
+            cheapest_flights["Rank"] = cheapest_flights["Price"].rank(
+                axis=0, method="first", ascending=True, na_option="bottom"
+            )
+            print(cheapest_flights)
+            return cheapest_flights
+        else:
+            return pd.DataFrame()  # Return an empty DataFrame if dates are 'Unknown'
 
 
 if __name__ == "__main__":
     data = FlightDataProcessor()
     data = data.get_processed_main_data()
     print(data.columns)
-    # print(data.columns)

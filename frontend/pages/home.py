@@ -30,19 +30,28 @@ dash.register_page(__name__, path="/")
 layout = html.Div(
     children=[
         html.H1(
-            "This is our Home page",
+            "Welcome",
             id="header-H1",
             style={
                 "fontSize": "2rem",
+                "margin-top": "25px",
                 "marginBottom": "1rem",
             },
         ),
         html.Div(
-            "This is our Home page content.",
+            children=[
+                html.P(
+                    "The initial notion of MaxyMal were to put the cap on my CS undergrad with a senior capstone project."
+                ),
+                html.P(
+                    "However, it has grown into an interesting project that's consisted of data scraping, data analysis, and data visualization of trends in flight prices."
+                ),
+            ],
             id="header-div",
             style={"fontSize": "1rem"},
         ),
-    ]
+    ],
+    style={"paddingTop": "45px"},  # Add padding to push content away from the top
 )
 
 

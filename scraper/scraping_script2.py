@@ -667,6 +667,7 @@ def extractFlightInfo(nlp_doc):
             {"POS": "PROPN", "OP": "*"},
             {"POS": "PROPN", "OP": "+"},
         ],
+        [{"LOWER": "to"}, {"POS": "PROPN", "OP": "+"}],
     ]
     connecting_airport_pattern_3 = [
         [
@@ -1175,12 +1176,15 @@ def clean_data(data):
 
         layover_info = {}
         if num_stops == 1:
+            print(data)
             # Extract the layover duration
             layover_duration = re.search(r"(\d+ hr \d+ min)", data[-2])  # 6
             if layover_duration is None:
                 layover_duration = re.search(r"(\d+ min)", data[-2])
                 if layover_duration is None:
                     layover_duration = re.search(r"(\d+ hr)", data[-2])
+                else:
+                    layover_duration = "0 hr "
             cleaned_data["Layover Duration"] = layover_duration.group(1)
             print(layover_duration.group(1))
 
