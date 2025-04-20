@@ -13,23 +13,24 @@ A comprehensive project for web scraping flight data, PostgreSQL-based data stor
 - Project Structure
 - Usage
 - Running the Scraper
-- Future Front-End Integration
+- Viewing the Dashboard
 - Contributing
 
 
 ## Project Overview
 
-This capstone project uses a Python-based web scraper to collect and store structured data from Google Flights. The data is stored in a PostgreSQL database. Future iterations will include a user-friendly front-end interface to visualize and interact with the data.
+This capstone project uses a Python-based web scraper to collect and store structured data from Google Flights. The data is stored in a PostgreSQL database. Where, utilizing PLotly's Dash, a data visualization Dashboard is developed as User-Interface and Experience.
 
 ## Features
 
 - Web Scraping: Extracts dynamic data from specified websites.
 - PostgreSQL Integration: Stores data in a relational database for efficient querying.
-- Extensible Design: Planned integration of a front-end for data visualization and interaction.
+- Dashboard Design: Integration of Plotly's Dash for data visualization and interaction.
 
 ## Technologies Used
 
-- Python: For web scraping using libraries such as requests, BeautifulSoup, or Selenium.
+- Python: For web scraping using Selenium.
+- SpaCy: For natural lanugage parsing
 - PostgreSQL: For relational data storage.
 - Python's Dash: For the front-end interface.
 
@@ -81,7 +82,7 @@ project_name/
 
 ### Running the Scraper
 
-1. Navigate to the scraper directory:
+1. Navigate to the 'scraper' directory:
 
 ```
 cd scraper
@@ -90,13 +91,27 @@ cd scraper
 2. Run the scraping script:
 
 ```
-python scraper.py
+python3 scraper.py
+```
+### Viewing the Dashboard
+
+1. Navigate to the 'frontend' directory:
+```
+cd frontend
 ```
 
+2. Run the Dashboard App script:
+```
+python3 app.py
+```
 
-### Future Front-End Integration
+3. Click on the URL to view Dashboard
+```
+Dash is running on http://localhost:8050/
 
-The front-end development will be added in future iterations. Stay tuned for updates!
+ * Serving Flask app 'app'
+ * Debug mode: on
+```
 
 ## Contributing
 
