@@ -51,13 +51,30 @@ git clone https://github.com/Mah-Hen/Senior-Capstone.git
 cd Senior-Capstone
 ```
 
-2. Install required Python packages:
+2. Create Virtual Environment:
+   
+```
+python -m venv <directory>
+```
+
+4. Activate Virutal Environment:
+   
+```
+# In cmd.exe
+venv\Scripts\activate.bat
+# In PowerShell
+venv\Scripts\Activate.ps1
+# In Linux
+source myvenv/bin/activate
+```
+
+5. Install required Python packages:
 
 ```
 pip install -r requirements.txt
 ```
 
-3. Set up the PostgreSQL database:
+6. (OPTIONAL) Set up the PostgreSQL database:
 
 - Create a database using your PostgreSQL client.
 - Update your system environment file with your database credentials.
